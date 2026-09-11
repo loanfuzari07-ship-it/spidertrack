@@ -548,6 +548,20 @@ export function salesByHour(range: DateRange): SalesByHour[] {
   return buckets;
 }
 
+/** Faturamento vitalício fictício — janela sintética larga (não é um período
+ *  navegável, só alimenta o placar de metas da lateral). */
+export function lifetimeRevenue(): number {
+  const now = new Date();
+  const from = new Date(now.getTime() - 220 * DAY_MS);
+  const synthetic: DateRange = {
+    key: "custom",
+    from: from.toISOString(),
+    to: now.toISOString(),
+    label: "vitalício",
+  };
+  return demoSet(synthetic).revenue;
+}
+
 export function purchasesList(
   range: DateRange,
   limit = 100,
@@ -815,8 +829,10 @@ export function saleDetail(purchaseId: string): DemoSaleDetail {
 }
 
 // ── Meta Ads (gasto/cliques/campanhas) ───────────────────────────────────────
-export function totalSpend(range: DateRange): { spend: number; ok: boolean } {
-  return { spend: demoSet(range).spend, ok: true };
+export function totalSpend(
+  range: DateRange,
+): { spend: number; ok: boolean; fetchedAt: number | null } {
+  return { spend: demoSet(range).spend, ok: true, fetchedAt: Date.now() };
 }
 
 export function totalClicks(range: DateRange): { clicks: number; ok: boolean } {

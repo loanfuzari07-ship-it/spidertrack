@@ -1,24 +1,19 @@
 import { Construction } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-/** Cabeçalho padrão das páginas do painel. */
+/** Cabeçalho padrão das páginas do painel. Só título + ação — sem subtítulo. */
 export function PageHeader({
   title,
-  description,
   action,
 }: {
   title: string;
+  /** Mantido por compatibilidade com chamadas existentes; não é mais exibido. */
   description?: string;
   action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {description ? (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
+      <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
       {action}
     </div>
   );

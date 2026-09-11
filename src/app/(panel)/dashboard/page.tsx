@@ -4,7 +4,9 @@ import { PaymentDonut, RevenueChart, SalesByHourChart } from "@/components/dashb
 import { Funnel } from "@/components/dashboard/funnel";
 import { SalesMap } from "@/components/dashboard/sales-map";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
+import { RefreshBar } from "@/components/dashboard/refresh-bar";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { refreshOverview } from "./actions";
 import {
   Card,
   CardContent,
@@ -109,15 +111,26 @@ export default async function OverviewPage({
       : null;
   const custoClique =
     spend.spend > 0 && clicks.clicks > 0 ? spend.spend / clicks.clicks : null;
-  const arpu = overview.visitors > 0 ? overview.revenue / overview.visitors : null;
+  const arpu = overview.avgTicket > 0 ? overview.avgTicket : null;
+  const cpaGeral =
+    spend.spend > 0 && overview.purchases > 0
+      ? spend.spend / overview.purchases
+      : null;
   const impostoMetaAds = spend.spend * META_ADS_TAX_RATE;
+  const refundBase = overview.purchases + salesStatus.refunded;
+  const refundRate = refundBase > 0 ? salesStatus.refunded / refundBase : 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Visão geral"
         description="Resumo de receita, investimento, lucro e conversão."
-        action={<PeriodSelector current={range.key} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <PeriodSelector current={range.key} />
+            <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
+          </div>
+        }
       />
 
       {/* Linha 1 — KPIs principais */}
@@ -145,9 +158,71 @@ export default async function OverviewPage({
         />
       </div>
 
-      {/* Linha 2 — produto | pendentes/reembolsadas | métricas | pagamento */}
-      <div className="grid gap-4 lg:grid-cols-4">
-        <Card className="lg:col-start-1 lg:row-start-1 lg:row-span-2">
+      {/* SpiderFlow — funil de conversão, logo após os KPIs principais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Spider<span className="text-primary">Flow</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Funnel
+            clicks={clicks.clicks}
+            pageviews={funnel.pageviews}
+            ics={funnel.ics}
+            salesInit={funnel.salesInit}
+            salesApproved={funnel.salesApproved}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Linha 2 — pendentes/reembolsadas + geolocalização (sobe) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-rows-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Vendas pendentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="font-mono text-3xl font-semibold tabular-nums">
+                {formatCurrency(salesStatus.pendingValue)}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatNumber(salesStatus.pending)} venda(s) aguardando
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Vendas reembolsadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="font-mono text-3xl font-semibold tabular-nums">
+                {formatPercent(refundRate)}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatNumber(salesStatus.refunded)} venda(s) ·{" "}
+                {formatCurrency(salesStatus.refundedValue)} devolvidos
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <SalesMap data={salesGeo} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Linha 3 — produto | métricas | pagamento (desce) */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Vendas por produto</CardTitle>
           </CardHeader>
@@ -195,39 +270,7 @@ export default async function OverviewPage({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-start-2 lg:row-start-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Vendas pendentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="font-mono text-3xl font-semibold tabular-nums">
-              {formatNumber(salesStatus.pending)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatCurrency(salesStatus.pendingValue)} aguardando
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-start-2 lg:row-start-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Vendas reembolsadas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="font-mono text-3xl font-semibold tabular-nums">
-              {formatNumber(salesStatus.refunded)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatCurrency(salesStatus.refundedValue)} devolvidos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-start-3 lg:row-start-1 lg:row-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Métricas</CardTitle>
           </CardHeader>
@@ -267,7 +310,7 @@ export default async function OverviewPage({
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 lg:col-start-4 lg:row-start-1 lg:row-span-2">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Vendas por pagamento</CardTitle>
           </CardHeader>
@@ -277,32 +320,8 @@ export default async function OverviewPage({
         </Card>
       </div>
 
-      {/* Linha 3 — funil + geolocalização */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Funil de conversão</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Funnel
-              clicks={clicks.clicks}
-              pageviews={funnel.pageviews}
-              ics={funnel.ics}
-              salesInit={funnel.salesInit}
-              salesApproved={funnel.salesApproved}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <SalesMap data={salesGeo} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Linha 4 — chargeback, ARPU, imposto Meta Ads */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Linha 4 — chargeback, ARPU, CPA geral, imposto Meta Ads */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Chargeback"
           value={formatPercent(chargeback.rate)}
@@ -316,7 +335,12 @@ export default async function OverviewPage({
         <StatCard
           label="ARPU"
           value={arpu != null ? formatCurrency(arpu) : "N/A"}
-          hint="receita ÷ usuários únicos"
+          hint="receita ÷ pedidos aprovados"
+        />
+        <StatCard
+          label="CPA médio"
+          value={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+          hint="investimento ÷ pedidos aprovados"
         />
         <StatCard
           label="Imposto Meta Ads"

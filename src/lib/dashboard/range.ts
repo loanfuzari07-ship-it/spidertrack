@@ -1,6 +1,6 @@
 // Intervalo de datas do painel (via ?range= + ?from=&to= no personalizado).
 
-export type RangeKey = "yesterday" | "today" | "7d" | "custom";
+export type RangeKey = "yesterday" | "today" | "7d" | "30d" | "custom";
 
 export interface DateRange {
   key: RangeKey;
@@ -13,6 +13,7 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: "yesterday", label: "Ontem" },
   { key: "today", label: "Hoje" },
   { key: "7d", label: "7 dias" },
+  { key: "30d", label: "30 dias" },
   { key: "custom", label: "Personalizado" },
 ];
 
@@ -50,7 +51,9 @@ export function parseRange(
   fromParam?: string,
   toParam?: string,
 ): DateRange {
-  const key = (["yesterday", "today", "7d", "custom"].includes(value ?? "")
+  const key = (["yesterday", "today", "7d", "30d", "custom"].includes(
+    value ?? "",
+  )
     ? value
     : "today") as RangeKey;
   const now = new Date();
@@ -72,6 +75,10 @@ export function parseRange(
   }
   if (key === "7d") {
     const from = new Date(now.getTime() - 7 * 86400_000).toISOString();
+    return { key, from, to, label };
+  }
+  if (key === "30d") {
+    const from = new Date(now.getTime() - 30 * 86400_000).toISOString();
     return { key, from, to, label };
   }
 

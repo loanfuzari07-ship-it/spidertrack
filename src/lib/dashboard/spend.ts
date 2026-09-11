@@ -37,9 +37,9 @@ export function rangeToSinceUntil(range: DateRange): {
 export async function getTotalSpend(
   admin: SupabaseClient,
   range: DateRange,
-): Promise<{ spend: number; ok: boolean }> {
+): Promise<{ spend: number; ok: boolean; fetchedAt: number | null }> {
   const accounts = await listAdAccounts(admin);
-  if (accounts.length === 0) return { spend: 0, ok: true };
+  if (accounts.length === 0) return { spend: 0, ok: true, fetchedAt: null };
 
   const { since, until } = rangeToSinceUntil(range);
   const results = await Promise.all(
@@ -50,7 +50,11 @@ export async function getTotalSpend(
     0,
   );
   const ok = results.every((r) => r.ok);
-  return { spend, ok };
+  // O mais antigo entre as contas — reflete o dado "menos fresco" na tela.
+  const fetchedAt = results.length
+    ? Math.min(...results.map((r) => r.fetchedAt))
+    : null;
+  return { spend, ok, fetchedAt };
 }
 
 /**

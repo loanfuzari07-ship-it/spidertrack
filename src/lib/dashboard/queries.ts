@@ -1058,3 +1058,20 @@ export async function getSalesByHour(
   }
   return buckets;
 }
+
+// ── Faturamento vitalício (sidebar — placar de metas) ───────────────────────
+
+/** Soma de TODAS as vendas aprovadas já registradas, sem filtro de período —
+ *  usado só no placar de metas da lateral (100K → 250K → ... → 10M). */
+export async function getLifetimeRevenue(db: DB): Promise<number> {
+  const { data } = await db
+    .from("purchases")
+    .select("value, status")
+    .limit(CAP);
+  let total = 0;
+  for (const p of (data ?? []) as { value: number | null; status: string | null }[]) {
+    if (isRefund(p.status) || p.value == null) continue;
+    total += Number(p.value);
+  }
+  return total;
+}

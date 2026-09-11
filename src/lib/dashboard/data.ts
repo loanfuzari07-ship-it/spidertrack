@@ -65,6 +65,9 @@ export const getApprovalByMethod = (s: Source, r: DateRange) =>
 export const getSalesByHour = (s: Source, r: DateRange) =>
   s.db ? q.getSalesByHour(s.db, r) : Promise.resolve(demo.salesByHour(r));
 
+export const getLifetimeRevenue = (s: Source) =>
+  s.db ? q.getLifetimeRevenue(s.db) : Promise.resolve(demo.lifetimeRevenue());
+
 export const getPurchasesList = (
   s: Source,
   r: DateRange,

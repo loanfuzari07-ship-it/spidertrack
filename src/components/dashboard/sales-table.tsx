@@ -29,7 +29,7 @@ import { countryName, formatCurrency, formatDateTime } from "@/lib/format";
 
 function statusVariant(
   status: string | null,
-): "success" | "destructive" | "secondary" {
+): "success" | "destructive" | "secondary" | "default" {
   if (!status) return "secondary";
   const s = status.toLowerCase();
   if (
@@ -38,6 +38,24 @@ function statusVariant(
     )
   )
     return "destructive";
+  if (
+    [
+      "pending",
+      "waiting",
+      "aguard",
+      "pendente",
+      "billet",
+      "printed_billet",
+      "open",
+      "created",
+      "initiat",
+      "processing",
+      "analysis",
+      "analise",
+      "started",
+    ].some((d) => s.includes(d))
+  )
+    return "default"; // azul — ainda não decidido
   return "success";
 }
 

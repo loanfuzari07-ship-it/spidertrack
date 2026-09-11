@@ -4,6 +4,7 @@ import { FlaskConical, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { signOut } from "@/app/(panel)/actions";
+import { RevenueGoalWidget } from "@/components/panel/revenue-goal-widget";
 import { SidebarNav } from "@/components/panel/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -82,11 +83,14 @@ function SignOutButton({ full }: { full?: boolean }) {
 export function PanelShell({
   email,
   demo = false,
+  lifetimeRevenue,
   children,
 }: {
   email: string | null;
   /** Painel aberto sem sessão, com dados fictícios. */
   demo?: boolean;
+  /** Faturamento vitalício (todo o histórico) — placar de metas da lateral. */
+  lifetimeRevenue: number;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -98,6 +102,9 @@ export function PanelShell({
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col overflow-y-auto border-r border-border/70 bg-card/40 p-4 md:flex">
         <div className="px-1 py-2">
           <Brand />
+        </div>
+        <div className="px-1">
+          <RevenueGoalWidget revenue={lifetimeRevenue} />
         </div>
         <div className="mt-4 flex-1">
           <SidebarNav />
@@ -139,6 +146,9 @@ export function PanelShell({
                 <SheetTitle className="sr-only">Navegação</SheetTitle>
                 <div className="px-1 pb-2">
                   <Brand />
+                </div>
+                <div className="px-1 pb-3">
+                  <RevenueGoalWidget revenue={lifetimeRevenue} />
                 </div>
                 <div className="mt-2 flex-1">
                   <SidebarNav onNavigate={() => setMobileOpen(false)} />

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { PanelShell } from "@/components/panel/panel-shell";
+import { getLifetimeRevenue, getSource } from "@/lib/dashboard/data";
 import { IS_DEMO } from "@/lib/demo/mode";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,9 +17,12 @@ export default async function PanelLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const src = await getSource();
+  const lifetimeRevenue = await getLifetimeRevenue(src);
+
   if (IS_DEMO) {
     return (
-      <PanelShell email={null} demo>
+      <PanelShell email={null} demo lifetimeRevenue={lifetimeRevenue}>
         {children}
       </PanelShell>
     );
@@ -33,5 +37,9 @@ export default async function PanelLayout({
     redirect("/login");
   }
 
-  return <PanelShell email={user.email ?? null}>{children}</PanelShell>;
+  return (
+    <PanelShell email={user.email ?? null} lifetimeRevenue={lifetimeRevenue}>
+      {children}
+    </PanelShell>
+  );
 }

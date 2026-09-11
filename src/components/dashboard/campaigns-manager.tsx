@@ -28,6 +28,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import type { ConversionPath } from "@/lib/dashboard/assists";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export interface ManagerRow {
   id: string;
@@ -177,6 +178,12 @@ export function CampaignsManager({
             : ads;
 
   const selectable = level !== "ads";
+
+  // Totais do rodapé — somam exatamente o que está na tabela (nível atual).
+  const totalBudget = rows.reduce((s, r) => s + (budgetOf(r) ?? 0), 0) / 100;
+  const totalSpend = rows.reduce((s, r) => s + r.spend, 0);
+  const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalLucro = totalRevenue - totalSpend;
   const isSelected = (r: ManagerRow) =>
     level === "campaigns"
       ? selCampaigns.has(r.id)
@@ -272,8 +279,10 @@ export function CampaignsManager({
               <TableHead className="text-right">Orçamento</TableHead>
               <TableHead className="text-right">Investimento</TableHead>
               <TableHead className="text-right">Faturamento</TableHead>
+              <TableHead className="text-right">Lucro</TableHead>
               <TableHead className="text-right">Compras</TableHead>
               <TableHead className="text-right">Custo/compra</TableHead>
+              <TableHead className="text-right">ARPU</TableHead>
               <TableHead className="text-right">ROAS</TableHead>
               <TableHead className="text-right">Assist.</TableHead>
               <TableHead className="text-right">IC</TableHead>
@@ -289,7 +298,7 @@ export function CampaignsManager({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={16}
+                  colSpan={18}
                   className="py-10 text-center text-sm text-muted-foreground"
                 >
                   Nada aqui no período/seleção.
@@ -298,7 +307,9 @@ export function CampaignsManager({
             ) : (
               rows.map((r) => {
                 const budget = budgetOf(r);
+                const lucro = r.revenue - r.spend;
                 const cpa = r.orders > 0 ? r.spend / r.orders : null;
+                const arpuRow = r.orders > 0 ? r.revenue / r.orders : null;
                 const cpi = r.checkouts > 0 ? r.spend / r.checkouts : null;
                 const cpc = r.clicks > 0 ? r.spend / r.clicks : null;
                 const ctr =
@@ -386,11 +397,22 @@ export function CampaignsManager({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right font-mono text-sm tabular-nums",
+                        lucro >= 0 ? "text-success" : "text-destructive",
+                      )}
+                    >
+                      {formatCurrency(lucro, currency)}
+                    </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {formatNumber(r.orders)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {cpa != null ? formatCurrency(cpa, currency) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {arpuRow != null ? formatCurrency(arpuRow, currency) : "—"}
                     </TableCell>
                     <TableCell className="text-right text-sm">
                       <Roas revenue={r.revenue} spend={r.spend} />
@@ -436,6 +458,41 @@ export function CampaignsManager({
           </TableBody>
         </Table>
       </div>
+
+      {/* Rodapé de resumo — soma tudo que está na tabela acima (nível atual). */}
+      {rows.length > 0 ? (
+        <div className="grid gap-3 rounded-lg border border-border/70 bg-card/40 p-4 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Orçamento total</p>
+            <p className="font-mono text-lg font-semibold tabular-nums">
+              {formatCurrency(totalBudget, currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Faturamento geral</p>
+            <p className="font-mono text-lg font-semibold tabular-nums">
+              {formatCurrency(totalRevenue, currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Lucro geral</p>
+            <p
+              className={cn(
+                "font-mono text-lg font-semibold tabular-nums",
+                totalLucro >= 0 ? "text-success" : "text-destructive",
+              )}
+            >
+              {formatCurrency(totalLucro, currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">ROAS geral</p>
+            <p className="font-mono text-lg font-semibold tabular-nums">
+              {totalSpend > 0 ? `${(totalRevenue / totalSpend).toFixed(2)}x` : "—"}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* Confirmação de ativar/pausar */}
       <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>

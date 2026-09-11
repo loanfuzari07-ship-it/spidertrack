@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/panel/page-header";
 import { AccountFilter } from "@/components/dashboard/account-filter";
@@ -7,8 +7,9 @@ import {
   type ManagerRow,
 } from "@/components/dashboard/campaigns-manager";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
+import { RefreshBar } from "@/components/dashboard/refresh-bar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { type AssistMaps, getAssists } from "@/lib/dashboard/assists";
 import { getSource, type Source } from "@/lib/dashboard/data";
 import {
@@ -29,7 +30,6 @@ import {
   getCampaigns,
   getInsights,
 } from "@/lib/dispatch/meta-ads";
-import { formatCurrency } from "@/lib/format";
 import { refreshInsights } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +56,7 @@ interface CampaignsData {
   ads: ManagerRow[];
   currency: string;
   errors: string[];
+  fetchedAt: number | null;
 }
 
 /** Monta o gerenciador: objetos do Meta × receita atribuída por UTM. */
@@ -66,7 +67,7 @@ async function loadCampaigns(
 ): Promise<CampaignsData | null> {
   if (src.demo || !src.db || !src.admin) {
     const d = demo.campaigns(range);
-    return { ...d, errors: [] };
+    return { ...d, errors: [], fetchedAt: Date.now() };
   }
 
   const all = await listAdAccounts(src.admin);
@@ -246,6 +247,10 @@ async function loadCampaigns(
   adsets.sort(bySpend);
   ads.sort(bySpend);
 
+  const fetchedAt = perAccount.length
+    ? Math.min(...perAccount.map((p) => p.insights.fetchedAt))
+    : null;
+
   return {
     accounts: all.map((a) => ({ id: a.id, label: a.label })),
     campaigns,
@@ -253,6 +258,7 @@ async function loadCampaigns(
     ads,
     currency,
     errors,
+    fetchedAt,
   };
 }
 
@@ -292,9 +298,7 @@ export default async function CampanhasPage({
     );
   }
 
-  const { accounts, campaigns, adsets, ads, currency, errors } = data;
-  const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
-  const totalRevenue = campaigns.reduce((s, c) => s + c.revenue, 0);
+  const { accounts, campaigns, adsets, ads, currency, errors, fetchedAt } = data;
 
   return (
     <div className="space-y-6">
@@ -307,12 +311,7 @@ export default async function CampanhasPage({
               <AccountFilter current={accountParam} accounts={accounts} />
             ) : null}
             <PeriodSelector current={range.key} />
-            <form action={refreshInsights}>
-              <Button variant="outline" size="sm" type="submit">
-                <RefreshCw className="size-4" />
-                Atualizar
-              </Button>
-            </form>
+            <RefreshBar fetchedAt={fetchedAt} action={refreshInsights} />
           </div>
         }
       />
@@ -323,35 +322,6 @@ export default async function CampanhasPage({
           <div>{errors.map((e) => <p key={e}>{e}</p>)}</div>
         </div>
       ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Investido</p>
-            <p className="font-mono text-2xl font-semibold tabular-nums">
-              {formatCurrency(totalSpend, currency)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Receita atribuída</p>
-            <p className="font-mono text-2xl font-semibold tabular-nums">
-              {formatCurrency(totalRevenue, currency)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">ROAS geral</p>
-            <p className="font-mono text-2xl font-semibold tabular-nums">
-              {totalSpend > 0
-                ? `${(totalRevenue / totalSpend).toFixed(2)}x`
-                : "—"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       <CampaignsManager
         campaigns={campaigns}
