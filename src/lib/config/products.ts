@@ -21,7 +21,7 @@ const CAP = 5000;
 function isRefund(status: string | null): boolean {
   if (!status) return false;
   const s = status.toLowerCase();
-  return ["refund", "chargeback", "cancel", "dispute", "reembols"].some((d) =>
+  return ["refund", "chargeback", "charged_back", "cancel", "dispute", "reembols"].some((d) =>
     s.includes(d),
   );
 }

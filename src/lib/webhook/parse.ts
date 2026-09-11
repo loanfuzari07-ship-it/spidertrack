@@ -15,11 +15,16 @@ function getPath(obj: unknown, path: string): unknown {
   return cur;
 }
 
-/** Primeiro valor não-vazio entre os caminhos candidatos. */
+/** Primeiro valor não-vazio entre os caminhos candidatos. Só aceita valores
+ *  PRIMITIVOS — um objeto/array no caminho não conta como "encontrado" (evita
+ *  engolir um objeto inteiro quando alguma plataforma usa o mesmo nome de
+ *  campo pra um objeto aninhado, ex.: `transaction` sendo um objeto). */
 function pick(obj: unknown, paths: string[]): unknown {
   for (const p of paths) {
     const v = getPath(obj, p);
-    if (v !== undefined && v !== null && v !== "") return v;
+    if (v !== undefined && v !== null && v !== "" && typeof v !== "object") {
+      return v;
+    }
   }
   return undefined;
 }
@@ -58,6 +63,22 @@ function firstDefined(...vals: unknown[]): unknown {
 function toStr(v: unknown): string | null {
   if (v === undefined || v === null) return null;
   return String(v).trim() || null;
+}
+
+/**
+ * Algumas plataformas (ex.: DigitalGoat) devolvem a URL COMPLETA do checkout
+ * que o cliente acessou (com todos os search params) num campo de texto só —
+ * não como objeto. Aqui extraímos um parâmetro específico dessa URL, se o
+ * campo existir e for mesmo uma URL válida.
+ */
+function paramFromUrlField(raw: unknown, path: string, param: string): string | null {
+  const v = getPath(raw, path);
+  if (typeof v !== "string" || !v) return null;
+  try {
+    return new URL(v).searchParams.get(param);
+  } catch {
+    return null;
+  }
 }
 
 /** Converte a data da venda (epoch ms/seg ou ISO) do webhook em ISO string. */
@@ -119,6 +140,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
     firstDefined(
       pick(raw, [
         "data.purchase.transaction",
+        "transaction.id", // DigitalGoat
         "order_id",
         "trans_cod",
         "transaction_id",
@@ -137,6 +159,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "data.purchase.price.value",
         "data.purchase.full_price.value",
         "Commissions.charge_amount",
+        "transaction.amount", // DigitalGoat
         "trans_value",
         "order.amount",
         "value",
@@ -151,6 +174,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
   const currency = toStr(
     pick(raw, [
       "data.purchase.price.currency_value",
+      "transaction.currency", // DigitalGoat
       "currency",
       "trans_currency",
       "order.currency",
@@ -161,6 +185,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
     firstDefined(
       pick(raw, [
         "data.purchase.status",
+        "transaction.status", // DigitalGoat
         "order_status",
         "trans_status",
         "status",
@@ -179,6 +204,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "client_email",
         "buyer.email",
         "customer.email",
+        "client.email", // DigitalGoat
         "email",
       ]),
       deepFind(raw, ["email", "client_email"]),
@@ -194,6 +220,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "Customer.phone",
         "client_cel",
         "buyer.phone",
+        "client.phone", // DigitalGoat
         "phone",
       ]),
       deepFind(raw, ["phone", "mobile", "cellphone", "client_cel", "celular"]),
@@ -208,6 +235,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "client_name",
         "buyer.name",
         "customer.name",
+        "client.name", // DigitalGoat
         "name",
       ]),
       deepFind(raw, ["full_name", "name", "client_name"]),
@@ -221,6 +249,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "Product.product_name",
         "product_name",
         "product.name",
+        "orderItems.0.product.name", // DigitalGoat
       ]),
       deepFind(raw, ["product_name"]),
     ),
@@ -232,6 +261,8 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       "Product.product_id",
       "product_id",
       "product.id",
+      "orderItems.0.product.externalId", // DigitalGoat — SKU legível, quando houver
+      "orderItems.0.product.id",
     ]),
   );
 
@@ -241,17 +272,20 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
     pick(raw, [
       "data.purchase.approved_date",
       "data.purchase.order_date",
+      "transaction.payedAt", // DigitalGoat
       "approved_date",
       "paid_at",
       "order_date",
       "trans_paiddate",
       "trans_createdate",
+      "transaction.createdAt", // DigitalGoat (fallback quando ainda não pago)
       "created_at",
     ]),
   );
 
   // trck_user_id chega via parâmetro decorado na URL de checkout (?trck=…),
-  // que as plataformas costumam expor como src/sck/UTM/campo custom.
+  // que as plataformas costumam expor como src/sck/UTM/campo custom — ou,
+  // no caso do DigitalGoat, dentro da URL completa em `checkoutUrl`.
   const trck_user_id = toStr(
     firstDefined(
       pick(raw, [
@@ -264,12 +298,19 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "sck",
         "s",
       ]),
+      paramFromUrlField(raw, "checkoutUrl", "trck"), // DigitalGoat
       deepFind(raw, ["trck", "trck_user_id"]),
     ),
   );
 
   const utm = (names: string[]) =>
-    toStr(firstDefined(pick(raw, names), deepFind(raw, [names[names.length - 1]])));
+    toStr(
+      firstDefined(
+        pick(raw, names),
+        paramFromUrlField(raw, "checkoutUrl", names[0]), // DigitalGoat
+        deepFind(raw, [names[names.length - 1]]),
+      ),
+    );
 
   return {
     transaction_id,
@@ -298,6 +339,7 @@ export function shouldDispatchPurchase(status: string | null): boolean {
   const deny = [
     "refund",
     "chargeback",
+    "charged_back",
     "cancel",
     "dispute",
     "pending",
@@ -324,6 +366,7 @@ export function shouldLogPurchaseEvent(status: string | null): boolean {
   const deny = [
     "refund",
     "chargeback",
+    "charged_back",
     "cancel",
     "dispute",
     "reject",

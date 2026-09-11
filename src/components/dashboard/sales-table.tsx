@@ -33,7 +33,7 @@ function statusVariant(
   if (!status) return "secondary";
   const s = status.toLowerCase();
   if (
-    ["refund", "chargeback", "cancel", "dispute", "reembols"].some((d) =>
+    ["refund", "chargeback", "charged_back", "cancel", "dispute", "reembols"].some((d) =>
       s.includes(d),
     )
   )

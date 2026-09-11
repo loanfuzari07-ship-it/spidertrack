@@ -31,7 +31,7 @@ type DB = SupabaseClient;
 function isRefund(status: string | null): boolean {
   if (!status) return false;
   const s = status.toLowerCase();
-  return ["refund", "chargeback", "cancel", "dispute", "reembols"].some((d) =>
+  return ["refund", "chargeback", "charged_back", "cancel", "dispute", "reembols"].some((d) =>
     s.includes(d),
   );
 }
@@ -41,7 +41,7 @@ function isRefund(status: string | null): boolean {
 function isChargebackStatus(status: string | null): boolean {
   if (!status) return false;
   const s = status.toLowerCase();
-  return s.includes("chargeback") || s.includes("dispute");
+  return s.includes("chargeback") || s.includes("charged_back") || s.includes("dispute");
 }
 
 /** Tentativa de pagamento recusada/expirada (não confundir com `pending`,
