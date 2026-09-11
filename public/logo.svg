@@ -1,0 +1,42 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="st-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- legs (8), each a bent line ending in a node -->
+  <g stroke="url(#st-grad)" stroke-width="14" stroke-linecap="round" fill="none">
+    <path d="M256 236 L168 176 L104 108"/>
+    <path d="M256 236 L150 214 L70 200"/>
+    <path d="M256 236 L150 260 L70 288"/>
+    <path d="M256 236 L168 300 L104 372"/>
+    <path d="M256 276 L344 176 L408 108"/>
+    <path d="M256 276 L362 214 L442 200"/>
+    <path d="M256 276 L362 260 L442 288"/>
+    <path d="M256 276 L344 300 L408 372"/>
+  </g>
+
+  <!-- leg tip nodes -->
+  <g fill="#2563eb">
+    <circle cx="104" cy="108" r="14"/>
+    <circle cx="70" cy="200" r="14"/>
+    <circle cx="70" cy="288" r="14"/>
+    <circle cx="104" cy="372" r="14"/>
+    <circle cx="408" cy="108" r="14"/>
+    <circle cx="442" cy="200" r="14"/>
+    <circle cx="442" cy="288" r="14"/>
+    <circle cx="408" cy="372" r="14"/>
+  </g>
+
+  <!-- body -->
+  <ellipse cx="256" cy="298" rx="58" ry="66" fill="url(#st-grad)"/>
+  <circle cx="256" cy="222" r="34" fill="url(#st-grad)"/>
+
+  <!-- head highlight dots (eyes) -->
+  <g fill="#ffffff" opacity="0.95">
+    <circle cx="244" cy="216" r="5"/>
+    <circle cx="268" cy="216" r="5"/>
+  </g>
+</svg>
