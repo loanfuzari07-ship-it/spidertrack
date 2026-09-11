@@ -100,13 +100,22 @@ export function buildMetaPayload(
   return payload;
 }
 
-/** Dispara a conversão para TODOS os pixels ativos. Retorna payload + resultados. */
+/**
+ * Dispara a conversão para os pixels ativos. Por padrão (sem `pixelIds`), vai
+ * para TODOS os pixels ativos — comportamento antigo, preservado para quem
+ * usa um produto único. Passando `pixelIds`, filtra só para esses (roteamento
+ * por produto: cada produto pode ter seu próprio Pixel).
+ */
 export async function dispatchMeta(
   admin: SupabaseClient,
   c: Conversion,
-  opts?: { testEventCode?: string | null },
+  opts?: { testEventCode?: string | null; pixelIds?: string[] | null },
 ): Promise<{ payload: Record<string, unknown>; results: MetaResult[] }> {
-  const pixels = await getActiveMetaPixels(admin);
+  let pixels = await getActiveMetaPixels(admin);
+  if (opts?.pixelIds?.length) {
+    const allow = new Set(opts.pixelIds);
+    pixels = pixels.filter((p) => allow.has(p.pixel_id));
+  }
   const payload = buildMetaPayload(c, opts?.testEventCode);
 
   const results = await Promise.all(

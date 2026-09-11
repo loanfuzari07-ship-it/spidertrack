@@ -1,7 +1,8 @@
 import {
   BookOpen,
-  FileText,
+  Layers,
   LayoutDashboard,
+  Link2,
   ListChecks,
   Megaphone,
   Settings,
@@ -34,14 +35,15 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Rastreamento",
     items: [
       { href: "/dashboard/campanhas", label: "Campanhas", icon: Megaphone },
+      { href: "/dashboard/pixel-spider", label: "Pixel Spider", icon: Layers },
+      { href: "/dashboard/utms", label: "UTMs", icon: Link2 },
       { href: "/dashboard/eventos", label: "Eventos", icon: ListChecks },
-      { href: "/dashboard/paginas", label: "Páginas", icon: FileText },
     ],
   },
   {
     label: "Sistema",
     items: [
-      { href: "/dashboard/config", label: "Configurações", icon: Settings },
+      { href: "/dashboard/config", label: "Integrações", icon: Settings },
       { href: "/dashboard/instrucoes", label: "Instruções", icon: BookOpen },
     ],
   },

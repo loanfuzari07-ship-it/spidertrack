@@ -1,6 +1,8 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import {
+  META_GRAPH_BASE,
+  META_GRAPH_VERSION,
   META_INSIGHTS_CACHE_TTL_SECONDS,
   metaEdgeUrl,
   metaInsightsUrl,
@@ -307,3 +309,58 @@ export const getAdSets = (id: string, token: string) =>
   getEdge(id, token, "adsets", ADSET_FIELDS);
 export const getAds = (id: string, token: string) =>
   getEdge(id, token, "ads", AD_FIELDS);
+
+// ── descoberta de contas (colar 1 token e listar todas as contas dele) ──────
+
+export interface DiscoveredAdAccount {
+  id: string; // já vem com "act_" da própria API
+  name: string;
+  active: boolean; // account_status === 1
+}
+
+/**
+ * Lista as contas de anúncio que o token enxerga (`/me/adaccounts`). Não usa
+ * cache — é uma ação explícita da pessoa ("Buscar contas"), sem custo de API
+ * repetido em segundo plano.
+ */
+export async function discoverAdAccounts(
+  token: string,
+): Promise<{ ok: boolean; accounts: DiscoveredAdAccount[]; error?: string }> {
+  const accounts: DiscoveredAdAccount[] = [];
+  try {
+    const base = new URL(`${META_GRAPH_BASE}/${META_GRAPH_VERSION}/me/adaccounts`);
+    base.searchParams.set("fields", "id,name,account_status");
+    base.searchParams.set("limit", "200");
+    base.searchParams.set("access_token", token);
+
+    let next: string | null = base.toString();
+    let pages = 0;
+    while (next && pages < 5) {
+      const res: Response = await fetch(next);
+      const json = await res.json();
+      if (!res.ok) {
+        return {
+          ok: false,
+          accounts,
+          error: json?.error?.message ?? `HTTP ${res.status}`,
+        };
+      }
+      for (const d of json.data ?? []) {
+        accounts.push({
+          id: d.id,
+          name: d.name ?? d.id,
+          active: Number(d.account_status) === 1,
+        });
+      }
+      next = json.paging?.next ?? null;
+      pages++;
+    }
+    return { ok: true, accounts };
+  } catch (e) {
+    return {
+      ok: false,
+      accounts,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}

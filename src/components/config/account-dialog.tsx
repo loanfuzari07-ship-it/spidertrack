@@ -118,6 +118,24 @@ export function AccountDialog({
             />
           </div>
 
+          {meta.kind !== "adaccount" ? (
+            <div className="space-y-2">
+              <Label htmlFor="domain">Domínio (opcional)</Label>
+              <Input
+                id="domain"
+                name="domain"
+                defaultValue={item?.domain ?? ""}
+                placeholder="ex.: meuproduto.com"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Só carrega nas páginas desse domínio — use quando cada produto
+                tiver seu próprio {meta.singular}. Em branco, carrega em
+                qualquer domínio.
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
             <div>
               <p className="text-sm font-medium">Ativa</p>

@@ -373,7 +373,7 @@
   }
 
   // ── bootstrap ─────────────────────────────────────────────────────────────
-  fetch(API + "/api/config")
+  fetch(API + "/api/config?domain=" + encodeURIComponent(location.hostname))
     .then(function (r) {
       return r.ok ? r.json() : { ga4: [], pixels: [] };
     })

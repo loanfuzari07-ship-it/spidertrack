@@ -52,4 +52,7 @@ export interface AccountRow {
   publicId: string;
   mask: string | null;
   is_active: boolean;
+  /** Só para pixel/ga4 — domínio "dono" desse destino (roteamento por
+   *  produto). `null`/ausente = global, carrega em qualquer domínio. */
+  domain?: string | null;
 }

@@ -30,25 +30,26 @@ export function RevenueGoalWidget({ revenue }: { revenue: number }) {
   const pct = Math.min(100, target > 0 ? (revenue / target) * 100 : 0);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-card/40 p-3">
+    <div className="overflow-hidden rounded-lg border border-border/70 bg-card/40 p-3">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        <Rocket className="size-3.5" style={{ color }} />
-        Faturamento rastreado
+        <Rocket className="size-3.5 shrink-0" style={{ color }} />
+        <span className="truncate">Faturamento rastreado</span>
       </div>
-      <p className="mt-1.5 font-mono text-lg font-bold tabular-nums">
-        {formatCurrencyCompact(revenue)}
-        <span className="text-sm font-medium text-muted-foreground">
-          {" "}
+      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+        <span className="font-mono text-base font-bold leading-none tabular-nums">
+          {formatCurrencyCompact(revenue)}
+        </span>
+        <span className="whitespace-nowrap font-mono text-xs font-medium leading-none text-muted-foreground tabular-nums">
           / {formatCurrencyCompact(target)}
         </span>
-      </p>
+      </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">
+      <p className="mt-1.5 truncate text-[11px] text-muted-foreground">
         {atMax
           ? "meta máxima atingida 🎉"
           : `${pct.toFixed(0)}% até ${formatCurrencyCompact(target)}`}

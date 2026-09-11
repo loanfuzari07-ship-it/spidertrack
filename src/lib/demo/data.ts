@@ -991,6 +991,42 @@ export function config(): DemoConfig {
       sales: Math.round(120 * p.share),
       revenue: Math.round(120 * p.share) * p.price,
       send_meta: p.name.includes("Upsell") ? false : true,
+      meta_pixel_id: null,
+      ga4_measurement_id: null,
     })),
+  };
+}
+
+/** Demo do Pixel Spider — um exemplo com GA4 vinculado, um sem. */
+export function pixelSpiders(): {
+  items: import("@/lib/config/pixel-spider").PixelSpiderRow[];
+  scriptDomain: string;
+} {
+  return {
+    scriptDomain: "seudominio.vercel.app",
+    items: [
+      {
+        id: "demo-spider-1",
+        label: "Produto X",
+        pixelId: "123456789012345",
+        capiTokenMask: "EAAG…demo",
+        domain: "produtox.com",
+        isActive: true,
+        ga4: {
+          id: "demo-spider-1-ga4",
+          measurementId: "G-XXXXXXXXXX",
+          apiSecretMask: "abcd…demo",
+        },
+      },
+      {
+        id: "demo-spider-2",
+        label: "Produto Y",
+        pixelId: "987654321098765",
+        capiTokenMask: "EAAG…demo2",
+        domain: null,
+        isActive: true,
+        ga4: null,
+      },
+    ],
   };
 }

@@ -11,6 +11,7 @@ import {
   normalizeAdAccountId,
 } from "@/lib/constants";
 import { DEMO_WRITE_ERROR, IS_DEMO } from "@/lib/demo/mode";
+import { discoverAdAccounts as discoverAdAccountsMeta } from "@/lib/dispatch/meta-ads";
 import { sha256 } from "@/lib/hash";
 import { maskSecret, sanitizeSecret } from "@/lib/mask";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,7 +49,7 @@ export type ActionState = { ok?: true; error?: string } | null;
 export type TestResult = { ok: boolean; message: string };
 
 /** Garante que quem chama a action está autenticado (as actions escrevem via admin). */
-async function requireUser() {
+export async function requireUser() {
   // Sem Supabase não há usuário nem banco: o painel está em vitrine.
   if (IS_DEMO) throw new Error(DEMO_WRITE_ERROR);
   const supabase = await createClient();
@@ -77,11 +78,84 @@ export async function toggleProductMeta(
   revalidatePath(CONFIG_PATH);
 }
 
+/** Define o Pixel/GA4 específico de um produto (`null` = manda pra todos). */
+export async function setProductDestination(
+  productKey: string,
+  productName: string | null,
+  field: "meta_pixel_id" | "ga4_measurement_id",
+  value: string | null,
+) {
+  await requireUser();
+  const admin = createAdminClient();
+  const { error } = await admin.from("product_settings").upsert(
+    {
+      product_key: productKey,
+      product_name: productName,
+      [field]: value,
+    },
+    { onConflict: "product_key" },
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath(CONFIG_PATH);
+}
+
 /** Cifra um segredo via RPC (só service_role executa). */
-async function encrypt(admin: ReturnType<typeof createAdminClient>, plaintext: string) {
+export async function encrypt(admin: ReturnType<typeof createAdminClient>, plaintext: string) {
   const { data, error } = await admin.rpc("encrypt_secret", { plaintext });
   if (error) throw new Error(`Falha ao cifrar: ${error.message}`);
   return data as string;
+}
+
+export type DiscoveredAccount = { id: string; name: string; active: boolean };
+export type DiscoverResult =
+  | { ok: true; accounts: DiscoveredAccount[] }
+  | { ok: false; error: string };
+
+/** Cola 1 token e lista TODAS as contas de anúncio que ele enxerga — nada é
+ *  salvo ainda, só a prévia pra pessoa escolher quais importar. */
+export async function discoverAdAccounts(token: string): Promise<DiscoverResult> {
+  await requireUser();
+  const clean = sanitizeSecret(token);
+  if (!clean) return { ok: false, error: "Cole um token válido." };
+
+  const r = await discoverAdAccountsMeta(clean);
+  if (!r.ok) return { ok: false, error: r.error ?? "Não foi possível buscar as contas." };
+  if (r.accounts.length === 0) {
+    return { ok: false, error: "Esse token não enxerga nenhuma conta de anúncio." };
+  }
+  return { ok: true, accounts: r.accounts };
+}
+
+/** Importa as contas escolhidas na descoberta, todas com o MESMO token. */
+export async function importAdAccounts(
+  token: string,
+  accounts: DiscoveredAccount[],
+): Promise<{ ok: boolean; error?: string; imported?: number }> {
+  await requireUser();
+  if (accounts.length === 0) return { ok: false, error: "Selecione ao menos uma conta." };
+
+  const admin = createAdminClient();
+  const clean = sanitizeSecret(token);
+  const enc = await encrypt(admin, clean);
+  const mask = maskSecret(clean);
+
+  let imported = 0;
+  for (const acc of accounts) {
+    const { error } = await admin.from("meta_ad_accounts").upsert(
+      {
+        label: acc.name,
+        ad_account_id: normalizeAdAccountId(acc.id),
+        ads_token_enc: enc,
+        ads_token_mask: mask,
+        is_active: true,
+      },
+      { onConflict: "ad_account_id" },
+    );
+    if (!error) imported++;
+  }
+
+  revalidatePath(CONFIG_PATH);
+  return { ok: imported > 0, imported };
 }
 
 async function decrypt(
@@ -168,6 +242,15 @@ export async function saveAccount(
       [map.idCol]: publicId,
       is_active: isActive,
     };
+    if (kind !== "adaccount") {
+      const domain = String(formData.get("domain") ?? "").trim();
+      row.domain = domain
+        ? domain
+            .toLowerCase()
+            .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+            .replace(/\/.*$/, "")
+        : null;
+    }
     if (secret) {
       row[map.encCol] = await encrypt(admin, secret);
       row[map.maskCol] = maskSecret(secret);

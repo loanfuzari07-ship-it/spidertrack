@@ -84,6 +84,11 @@ export function AccountSection({
                 <p className="font-mono text-xs text-muted-foreground">
                   segredo: {item.mask ?? "— não definido —"}
                 </p>
+                {item.domain ? (
+                  <p className="truncate font-mono text-xs text-primary">
+                    domínio: {item.domain}
+                  </p>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2">

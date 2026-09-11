@@ -24,7 +24,7 @@ export function RefreshBar({
   action: () => Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-end gap-1">
       {fetchedAt != null ? (
         <span className="text-xs text-muted-foreground">
           {timeAgoLabel(fetchedAt)}

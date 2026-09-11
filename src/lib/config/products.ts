@@ -11,6 +11,9 @@ export interface ProductRow {
   sales: number;
   revenue: number;
   send_meta: boolean;
+  /** `null` = manda pra todos os pixels/propriedades ativas (padrão). */
+  meta_pixel_id: string | null;
+  ga4_measurement_id: string | null;
 }
 
 const CAP = 5000;
@@ -31,11 +34,23 @@ export async function getProducts(
       .from("purchases")
       .select("product_id, product_name, value, status")
       .limit(CAP),
-    db.from("product_settings").select("product_key, send_meta"),
+    db
+      .from("product_settings")
+      .select("product_key, send_meta, meta_pixel_id, ga4_measurement_id"),
   ]);
 
-  const flag = new Map<string, boolean>(
-    (settings ?? []).map((s) => [s.product_key as string, s.send_meta as boolean]),
+  const flag = new Map<
+    string,
+    { send_meta: boolean; meta_pixel_id: string | null; ga4_measurement_id: string | null }
+  >(
+    (settings ?? []).map((s) => [
+      s.product_key as string,
+      {
+        send_meta: s.send_meta as boolean,
+        meta_pixel_id: (s.meta_pixel_id as string | null) ?? null,
+        ga4_measurement_id: (s.ga4_measurement_id as string | null) ?? null,
+      },
+    ]),
   );
 
   const map = new Map<string, { name: string; sales: number; revenue: number }>();
@@ -58,7 +73,9 @@ export async function getProducts(
       name: v.name,
       sales: v.sales,
       revenue: v.revenue,
-      send_meta: flag.get(key) ?? true, // default LIGADO
+      send_meta: flag.get(key)?.send_meta ?? true, // default LIGADO
+      meta_pixel_id: flag.get(key)?.meta_pixel_id ?? null,
+      ga4_measurement_id: flag.get(key)?.ga4_measurement_id ?? null,
     }))
     .sort((a, b) => b.sales - a.sales);
 }

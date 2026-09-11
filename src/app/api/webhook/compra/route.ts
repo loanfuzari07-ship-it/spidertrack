@@ -276,20 +276,32 @@ export async function POST(req: Request) {
   };
 
   // Envio ao Meta pode ser desligado por produto no painel (ex.: upsells).
-  // Sem linha em product_settings → default LIGADO. GA4 não é afetado.
+  // Cada produto também pode ter SEU PRÓPRIO Pixel/propriedade GA4 — sem
+  // configurar nada, cai no comportamento antigo (manda pra todos os ativos).
   const prodKey = productKey(norm.product_id, norm.product_name);
   let sendMeta = true;
+  let productPixelId: string | null = null;
+  let productGa4Id: string | null = null;
   if (prodKey) {
     const { data: ps } = await admin
       .from("product_settings")
-      .select("send_meta")
+      .select("send_meta, meta_pixel_id, ga4_measurement_id")
       .eq("product_key", prodKey)
       .maybeSingle();
-    sendMeta = (ps as { send_meta: boolean } | null)?.send_meta ?? true;
+    const row = ps as {
+      send_meta: boolean;
+      meta_pixel_id: string | null;
+      ga4_measurement_id: string | null;
+    } | null;
+    sendMeta = row?.send_meta ?? true;
+    productPixelId = row?.meta_pixel_id ?? null;
+    productGa4Id = row?.ga4_measurement_id ?? null;
   }
 
   const meta = sendMeta
-    ? await dispatchMeta(admin, conversion)
+    ? await dispatchMeta(admin, conversion, {
+        pixelIds: productPixelId ? [productPixelId] : null,
+      })
     : {
         payload: { skipped: "produto desativado no painel" },
         results: [] as Awaited<ReturnType<typeof dispatchMeta>>["results"],
@@ -318,6 +330,8 @@ export async function POST(req: Request) {
         currency,
         items,
       },
+      false,
+      productGa4Id ? [productGa4Id] : null,
     );
     ga4Payload = ga4.payload;
     ga4Results = ga4.results;

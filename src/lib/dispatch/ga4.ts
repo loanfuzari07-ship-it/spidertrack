@@ -29,7 +29,11 @@ export function buildGa4Payload(
   return { client_id: clientId, events: [{ name, params: p }] };
 }
 
-/** Dispara para TODAS as propriedades GA4 ativas via Measurement Protocol. */
+/**
+ * Dispara para as propriedades GA4 ativas via Measurement Protocol. Por
+ * padrão vai para TODAS (comportamento antigo). Passando `measurementIds`,
+ * filtra só para essas (roteamento por produto).
+ */
 export async function dispatchGa4(
   admin: SupabaseClient,
   clientId: string,
@@ -37,8 +41,13 @@ export async function dispatchGa4(
   name: string,
   params: Ga4Params,
   debug = false,
+  measurementIds?: string[] | null,
 ): Promise<{ payload: Record<string, unknown>; results: Ga4Result[] }> {
-  const accounts = await getActiveGa4Accounts(admin);
+  let accounts = await getActiveGa4Accounts(admin);
+  if (measurementIds?.length) {
+    const allow = new Set(measurementIds);
+    accounts = accounts.filter((a) => allow.has(a.measurement_id));
+  }
   const payload = buildGa4Payload(clientId, sessionId, name, params);
   const endpoint = debug ? GA4_MP_DEBUG_ENDPOINT : GA4_MP_ENDPOINT;
 
