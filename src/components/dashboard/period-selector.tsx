@@ -44,13 +44,13 @@ export function PeriodSelector({ current }: { current: RangeKey }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-md border border-border/70 bg-card/40 p-0.5">
+      <div className="scrollbar-none inline-flex shrink-0 gap-0.5 overflow-x-auto rounded-md border border-border/70 bg-card/40 p-0.5">
         {RANGE_OPTIONS.map((o) => (
           <button
             key={o.key}
             onClick={() => select(o.key)}
             className={cn(
-              "rounded px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium transition-colors",
               current === o.key
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground",

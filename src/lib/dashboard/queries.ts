@@ -155,7 +155,7 @@ export async function getOverview(db: DB, range: DateRange): Promise<Overview> {
   ]);
 
   const paid = purchasesAll.filter(
-    (p) => !isRefund(p.status) && p.value != null,
+    (p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null,
   );
   const revenue = paid.reduce((s, p) => s + Number(p.value ?? 0), 0);
   const purchases = paid.length;
@@ -195,7 +195,7 @@ export async function getFunnel(
   ]);
 
   const salesApproved = rows.filter(
-    (p) => !isRefund(p.status) && p.value != null,
+    (p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null,
   ).length;
 
   return { pageviews, ics, salesInit: rows.length, salesApproved };
@@ -267,7 +267,7 @@ export async function getSalesByCountry(
   range: DateRange,
 ): Promise<SalesGeo> {
   const data = await loadPurchases(db, range);
-  const paid = data.filter((p) => !isRefund(p.status) && p.value != null);
+  const paid = data.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
   const m = new Map<string, number>();
   let noCountry = 0;
@@ -358,7 +358,7 @@ export async function getSalesBreakdown(
     range,
   );
   const { data } = await q;
-  const paid = (data ?? []).filter((p) => !isRefund(p.status) && p.value != null);
+  const paid = (data ?? []).filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
   const PAY_ORDER = ["pix", "cartao", "boleto", "outros"];
   const payMap = new Map<string, SalesSlice>();
@@ -471,7 +471,7 @@ export async function getFaturamento(
   range: DateRange,
 ): Promise<Faturamento> {
   const rows = await loadPurchases(db, range);
-  const paid = rows.filter((p) => !isRefund(p.status) && p.value != null);
+  const paid = rows.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
   const refunded = rows.filter((p) => isRefund(p.status));
   const revenue = paid.reduce((s, p) => s + Number(p.value ?? 0), 0);
   const refundValue = refunded.reduce((s, p) => s + Number(p.value ?? 0), 0);
@@ -697,7 +697,7 @@ export async function getRevenueByUtm(
   const data = await loadPurchases(db, range);
   const map = new Map<string, UtmRevenue>();
   for (const p of data) {
-    if (isRefund(p.status) || p.value == null) continue;
+    if (isRefund(p.status) || isFailedStatus(p.status) || p.value == null) continue;
     const key = (p.utm_campaign ?? "(sem campanha)").toLowerCase();
     const cur =
       map.get(key) ??
@@ -768,7 +768,7 @@ export async function getRevenueUtmMaps(
   };
 
   for (const p of data) {
-    if (isRefund(p.status) || p.value == null) continue;
+    if (isRefund(p.status) || isFailedStatus(p.status) || p.value == null) continue;
     const v = Number(p.value);
     add(maps.campaigns, p.utm_campaign, v);
     add(maps.adsets, p.utm_term, v);
@@ -822,7 +822,7 @@ export async function getPages(db: DB, range: DateRange): Promise<PageRow[]> {
 
   const paidBuyers = new Set(
     purchases
-      .filter((p) => !isRefund(p.status) && p.value != null && p.trck_user_id)
+      .filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null && p.trck_user_id)
       .map((p) => p.trck_user_id as string),
   );
 
@@ -1051,7 +1051,7 @@ export async function getSalesByHour(
   }));
 
   for (const p of rows) {
-    if (isRefund(p.status) || p.value == null) continue;
+    if (isRefund(p.status) || isFailedStatus(p.status) || p.value == null) continue;
     const h = Number(SP_HOUR_FMT.format(new Date(p.created_at))) % 24;
     buckets[h].count += 1;
     buckets[h].revenue += Number(p.value ?? 0);
@@ -1070,7 +1070,7 @@ export async function getLifetimeRevenue(db: DB): Promise<number> {
     .limit(CAP);
   let total = 0;
   for (const p of (data ?? []) as { value: number | null; status: string | null }[]) {
-    if (isRefund(p.status) || p.value == null) continue;
+    if (isRefund(p.status) || isFailedStatus(p.status) || p.value == null) continue;
     total += Number(p.value);
   }
   return total;

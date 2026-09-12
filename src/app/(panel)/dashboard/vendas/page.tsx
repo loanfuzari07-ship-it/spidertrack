@@ -43,16 +43,12 @@ export default async function VendasPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Vendas"
-        description="Receita, ticket médio, reembolsos e compras."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ProductFilter current={product ?? "all"} products={products} />
-            <PeriodSelector current={range.key} />
-          </div>
-        }
-      />
+      <PageHeader title="Vendas" />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <ProductFilter current={product ?? "all"} products={products} />
+        <PeriodSelector current={range.key} />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

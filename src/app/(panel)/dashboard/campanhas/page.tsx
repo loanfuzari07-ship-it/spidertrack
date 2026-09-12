@@ -304,17 +304,17 @@ export default async function CampanhasPage({
     <div className="space-y-6">
       <PageHeader
         title="Campanhas"
-        description="Gerenciador de anúncios — investido (Meta) × compras/ROAS (webhook)."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            {accounts.length > 1 ? (
-              <AccountFilter current={accountParam} accounts={accounts} />
-            ) : null}
-            <PeriodSelector current={range.key} />
-            <RefreshBar fetchedAt={fetchedAt} action={refreshInsights} />
-          </div>
+          accounts.length > 1 ? (
+            <AccountFilter current={accountParam} accounts={accounts} />
+          ) : undefined
         }
       />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PeriodSelector current={range.key} />
+        <RefreshBar fetchedAt={fetchedAt} action={refreshInsights} />
+      </div>
 
       {errors.length > 0 ? (
         <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">

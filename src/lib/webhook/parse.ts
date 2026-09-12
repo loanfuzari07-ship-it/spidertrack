@@ -350,6 +350,7 @@ export function shouldDispatchPurchase(status: string | null): boolean {
     "billet_printed",
     "printed_billet",
     "delayed",
+    "failed",
   ];
   return !deny.some((d) => s.includes(d));
 }
@@ -373,6 +374,7 @@ export function shouldLogPurchaseEvent(status: string | null): boolean {
     "expired",
     "abandon",
     "delayed",
+    "failed",
     "billet_printed",
     "printed_billet",
   ];

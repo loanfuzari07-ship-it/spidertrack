@@ -19,6 +19,16 @@ function isRefund(status: string | null): boolean {
   );
 }
 
+/** Tentativa de pagamento que não foi concluída — não deve contar como venda
+ *  atribuída/assistida. */
+function isFailedStatus(status: string | null): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return ["refus", "declin", "denied", "negad", "failed", "expired", "rejected"].some((d) =>
+    s.includes(d),
+  );
+}
+
 export interface PathStep {
   campaign: string;
   adset: string | null;
@@ -79,7 +89,7 @@ export async function getAssists(
   pq = pq.lt("created_at", range.to);
   const { data: purchases } = await pq;
   const paid = (purchases ?? []).filter(
-    (p) => !isRefund(p.status) && p.value != null && p.trck_user_id,
+    (p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null && p.trck_user_id,
   );
   if (paid.length === 0) return maps;
 

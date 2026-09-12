@@ -2,6 +2,7 @@
 
 import { Check, Copy, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { InfoTooltip } from "@/components/panel/info-tooltip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,10 +79,12 @@ function Field({
 /** Bloco de texto com botão de copiar — reutilizado pros dois outputs. */
 function CopyBlock({
   label,
+  info,
   value,
   emptyHint,
 }: {
   label: string;
+  info?: string;
   value: string;
   emptyHint: string;
 }) {
@@ -98,7 +101,10 @@ function CopyBlock({
   }
   return (
     <div className="space-y-3">
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label>{label}</Label>
+        {info ? <InfoTooltip text={info} /> : null}
+      </div>
       <pre className="min-h-[72px] overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border/60 bg-muted/30 p-3 font-mono text-xs">
         {value || emptyHint}
       </pre>
@@ -159,7 +165,10 @@ export function UtmBuilder() {
       <Card>
         <CardContent className="space-y-4 pt-5">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Parâmetros</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium">Parâmetros</p>
+              <InfoTooltip text='O botão "Preencher pra Meta Ads" usa os parâmetros dinâmicos do próprio Meta — viram o nome e o ID reais da campanha/conjunto/anúncio no clique. É esse formato (nome|id) que a aba Campanhas já sabe ler pra casar a venda certa.' />
+            </div>
             <Button type="button" variant="outline" size="sm" onClick={applyMetaPreset}>
               <Sparkles className="size-3.5" />
               Preencher pra Meta Ads
@@ -204,12 +213,9 @@ export function UtmBuilder() {
 
           <div className="space-y-3 rounded-md border border-border/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <div>
+              <div className="flex items-center gap-1.5">
                 <p className="text-sm font-medium">Incluir xcod (Hotmart)</p>
-                <p className="text-xs text-muted-foreground">
-                  Só alimenta o relatório interno da Hotmart — não afeta o
-                  SpiderTrack nem muda os campos utm_ acima.
-                </p>
+                <InfoTooltip text="xcod é específico da Hotmart e só aparece no relatório dela (Hotmart Analytics) — ela não repassa isso pro webhook, então não muda nada nos dados aqui no SpiderTrack. Ligue só se você também acompanha os números por lá." />
               </div>
               <Switch checked={useXcod} onCheckedChange={setUseXcod} />
             </div>
@@ -250,7 +256,8 @@ export function UtmBuilder() {
         <Card className="border-primary/40">
           <CardContent className="pt-5">
             <CopyBlock
-              label='Parâmetros de URL — cole no campo separado "Parâmetros de URL" do Gerenciador de Anúncios'
+              label='Parâmetros de URL — cole no campo separado "Parâmetros de URL"'
+              info='No Meta Ads Manager, "URL do site" e "Parâmetros de URL" são campos separados — o Meta gruda um no outro sozinho. Cole sua página (sem nada) em "URL do site", e isto aqui em "Parâmetros de URL".'
               value={paramsString}
               emptyHint="Clique em “Preencher pra Meta Ads” ou preencha os campos ao lado."
             />
@@ -264,32 +271,6 @@ export function UtmBuilder() {
               value={fullUrl}
               emptyHint="Preencha a URL da página acima pra gerar o link completo."
             />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-2 pt-5 text-sm text-muted-foreground">
-            <p>
-              No Meta Ads Manager, <strong className="text-foreground">&quot;URL do site&quot;</strong>{" "}
-              e <strong className="text-foreground">&quot;Parâmetros de URL&quot;</strong> são campos
-              separados — o Meta gruda um no outro sozinho. Cole sua página
-              (sem nada) no primeiro, e o bloco azul acima no segundo.
-            </p>
-            <p>
-              O botão <strong className="text-foreground">&quot;Preencher pra Meta Ads&quot;</strong>{" "}
-              usa os parâmetros dinâmicos do próprio Meta — eles viram o nome e
-              o ID reais da campanha/conjunto/anúncio no momento do clique. É
-              esse formato (<code className="text-foreground">nome|id</code>)
-              que a aba <strong className="text-foreground">Campanhas</strong>{" "}
-              já sabe ler pra casar cada venda com a campanha certa.
-            </p>
-            <p>
-              <code className="text-foreground">xcod</code> é específico da
-              Hotmart e só aparece no relatório dela (Hotmart Analytics) — a
-              própria Hotmart não repassa isso pro webhook, então não muda em
-              nada os dados que aparecem aqui no SpiderTrack. Ligue o toggle
-              só se você também acompanha os números por lá.
-            </p>
           </CardContent>
         </Card>
       </div>

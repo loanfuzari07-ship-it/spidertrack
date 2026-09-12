@@ -56,14 +56,10 @@ export default async function PixelSpiderPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pixel Spider" />
-      <p className="max-w-2xl text-sm text-muted-foreground">
-        Cada Pixel Spider é um conjunto — Pixel Meta + token da Conversions
-        API + (opcional) propriedade GA4 — pronto pra colar num produto. Se
-        você tem mais de um produto com pixels diferentes, cadastre um domínio
-        em cada um: a página escolhe sozinha qual pixel carregar, pelo domínio
-        onde o script está instalado.
-      </p>
+      <PageHeader
+        title="Pixel Spider"
+        info="Cada Pixel Spider é um conjunto — Pixel Meta + token da Conversions API + (opcional) propriedade GA4 — pronto pra colar num produto. Se você tem mais de um produto com pixels diferentes, cadastre um domínio em cada um: a página escolhe sozinha qual pixel carregar, pelo domínio onde o script está instalado."
+      />
       <PixelSpiderList items={items} scriptDomain={scriptDomain} />
 
       <div className="border-t border-border/70 pt-6">

@@ -26,6 +26,16 @@ function isRefund(status: string | null): boolean {
   );
 }
 
+/** Tentativa de pagamento que não foi concluída (não é reembolso — nunca chegou
+ *  a ser paga). Não deve contar como receita do produto. */
+function isFailedStatus(status: string | null): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return ["refus", "declin", "denied", "negad", "failed", "expired", "rejected"].some((d) =>
+    s.includes(d),
+  );
+}
+
 export async function getProducts(
   db: SupabaseClient,
 ): Promise<ProductRow[]> {
@@ -63,7 +73,7 @@ export async function getProducts(
       revenue: 0,
     };
     cur.sales += 1;
-    if (!isRefund(p.status) && p.value != null) cur.revenue += Number(p.value);
+    if (!isRefund(p.status) && !isFailedStatus(p.status) && p.value != null) cur.revenue += Number(p.value);
     map.set(key, cur);
   }
 

@@ -270,8 +270,9 @@ export function CampaignsManager({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-border/70">
-        <Table>
+      <div className="relative">
+        <div className="overflow-x-auto rounded-lg border border-border/70 [-webkit-overflow-scrolling:touch]">
+          <Table className="min-w-max">
           <TableHeader>
             <TableRow>
               <TableHead className="text-center">Ativo</TableHead>
@@ -457,15 +458,24 @@ export function CampaignsManager({
             )}
           </TableBody>
         </Table>
+        </div>
+        {/* Sombra na borda direita — indica que dá pra arrastar pro lado. */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-lg bg-gradient-to-l from-background/80 to-transparent" />
       </div>
 
       {/* Rodapé de resumo — soma tudo que está na tabela acima (nível atual). */}
       {rows.length > 0 ? (
-        <div className="grid gap-3 rounded-lg border border-border/70 bg-card/40 p-4 sm:grid-cols-4">
+        <div className="grid gap-3 rounded-lg border border-border/70 bg-card/40 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <p className="text-xs text-muted-foreground">Orçamento total</p>
             <p className="font-mono text-lg font-semibold tabular-nums">
               {formatCurrency(totalBudget, currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Valor gasto geral</p>
+            <p className="font-mono text-lg font-semibold tabular-nums">
+              {formatCurrency(totalSpend, currency)}
             </p>
           </div>
           <div>

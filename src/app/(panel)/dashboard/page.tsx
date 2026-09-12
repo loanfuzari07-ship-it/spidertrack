@@ -122,16 +122,12 @@ export default async function OverviewPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Visão geral"
-        description="Resumo de receita, investimento, lucro e conversão."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <PeriodSelector current={range.key} />
-            <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
-          </div>
-        }
-      />
+      <PageHeader title="Visão geral" />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PeriodSelector current={range.key} />
+        <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
+      </div>
 
       {/* Linha 1 — KPIs principais */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
