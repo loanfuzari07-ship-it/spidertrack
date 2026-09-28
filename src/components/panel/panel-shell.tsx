@@ -62,6 +62,54 @@ function DemoBanner() {
   );
 }
 
+/** Iniciais pro avatar: 2 letras do nome (primeira + última palavra), ou a
+ *  primeira letra do e-mail quando ainda não há nome cadastrado. */
+function initialsOf(name: string, email: string | null): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 0) {
+    const first = parts[0]?.[0] ?? "";
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+    return (first + last).toUpperCase();
+  }
+  return email ? email[0]!.toUpperCase() : "?";
+}
+
+/** Cartão do usuário logado na base da sidebar — nome + sobrenome (cadastrados
+ *  em Minha conta) no lugar do e-mail cru, com iniciais em avatar. */
+function UserCard({
+  email,
+  firstName,
+  lastName,
+}: {
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}) {
+  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const display = name || email;
+  if (!display) return null;
+
+  return (
+    <Link
+      href="/dashboard/minha-conta"
+      className="flex items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-accent"
+    >
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-xs font-semibold text-primary"
+      >
+        {initialsOf(name, email)}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium" title={display}>
+          {display}
+        </span>
+        <span className="block text-xs text-muted-foreground">Usuário</span>
+      </span>
+    </Link>
+  );
+}
+
 function SignOutButton({ full }: { full?: boolean }) {
   return (
     <form action={signOut}>
@@ -82,11 +130,16 @@ function SignOutButton({ full }: { full?: boolean }) {
 /** Estrutura do painel: sidebar fixa no desktop, drawer no mobile, header comum. */
 export function PanelShell({
   email,
+  firstName = null,
+  lastName = null,
   demo = false,
   lifetimeRevenue,
   children,
 }: {
   email: string | null;
+  /** Nome/sobrenome cadastrados em "Minha conta" — mostrados no lugar do e-mail. */
+  firstName?: string | null;
+  lastName?: string | null;
   /** Painel aberto sem sessão, com dados fictícios. */
   demo?: boolean;
   /** Faturamento vitalício (todo o histórico) — placar de metas da lateral. */
@@ -110,11 +163,7 @@ export function PanelShell({
           <SidebarNav />
         </div>
         <div className="mt-auto space-y-3 border-t border-border/70 pt-3">
-          {email ? (
-            <p className="truncate px-1 text-xs text-muted-foreground" title={email}>
-              {email}
-            </p>
-          ) : null}
+          <UserCard email={email} firstName={firstName} lastName={lastName} />
           {demo ? (
             <p className="px-1 text-xs text-muted-foreground">
               Sessão desativada na demonstração.
@@ -153,11 +202,9 @@ export function PanelShell({
                 <div className="mt-2 flex-1">
                   <SidebarNav onNavigate={() => setMobileOpen(false)} />
                 </div>
-                {email ? (
-                  <p className="truncate px-1 pt-2 text-xs text-muted-foreground">
-                    {email}
-                  </p>
-                ) : null}
+                <div className="px-1 pt-2">
+                  <UserCard email={email} firstName={firstName} lastName={lastName} />
+                </div>
                 {demo ? null : (
                   <div className="pt-2">
                     <SignOutButton full />

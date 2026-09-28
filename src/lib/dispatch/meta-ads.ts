@@ -151,6 +151,10 @@ export async function getInsights(
 export interface DailySpend {
   day: string; // YYYY-MM-DD
   spend: number;
+  /** Nível campanha (não conta) — permite filtrar o gasto diário por oferta
+   *  (campanha → oferta), igual ao gasto total. */
+  campaign_id: string;
+  campaign_name: string;
 }
 
 async function fetchDailySpendRaw(
@@ -162,8 +166,8 @@ async function fetchDailySpendRaw(
   const rows: DailySpend[] = [];
   try {
     const base = new URL(metaInsightsUrl(adAccountId));
-    base.searchParams.set("level", "account");
-    base.searchParams.set("fields", "spend");
+    base.searchParams.set("level", "campaign");
+    base.searchParams.set("fields", "campaign_id,campaign_name,spend");
     base.searchParams.set("time_range", JSON.stringify({ since, until }));
     base.searchParams.set("time_increment", "1"); // um registro por dia
     base.searchParams.set("limit", "500");
@@ -178,7 +182,12 @@ async function fetchDailySpendRaw(
         return { ok: false, rows, error: json?.error?.message ?? `HTTP ${res.status}` };
       }
       for (const d of json.data ?? []) {
-        rows.push({ day: d.date_start, spend: parseFloat(d.spend ?? "0") || 0 });
+        rows.push({
+          day: d.date_start,
+          spend: parseFloat(d.spend ?? "0") || 0,
+          campaign_id: d.campaign_id ?? "",
+          campaign_name: d.campaign_name ?? "(sem nome)",
+        });
       }
       next = json.paging?.next ?? null;
       pages++;
@@ -202,7 +211,7 @@ export async function getDailySpend(
       if (!r.ok) throw new Error(r.error ?? "insights_error");
       return r.rows;
     },
-    [META_INSIGHTS_TAG, "daily", adAccountId, since, until],
+    [META_INSIGHTS_TAG, "daily-v2", adAccountId, since, until],
     {
       revalidate: META_INSIGHTS_CACHE_TTL_SECONDS,
       tags: [META_INSIGHTS_TAG, `${META_INSIGHTS_TAG}:${adAccountId}`],

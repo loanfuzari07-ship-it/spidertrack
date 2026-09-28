@@ -39,15 +39,31 @@ function filterAccounts<T extends { id: string }>(
   return accounts.filter((a) => a.id === accountId);
 }
 
+/** `null` = sem filtro de oferta (todas as campanhas). Quando informado, só
+ *  entram linhas cuja campanha (nome OU id, minúsculo) está no conjunto —
+ *  monta-se em `getOfertaMaps().campaignOferta` (ver Visão geral/Ofertas). */
+function matchesCampaign(
+  row: { campaign_id: string; campaign_name: string },
+  campaignKeys: Set<string> | null | undefined,
+): boolean {
+  if (!campaignKeys) return true;
+  return (
+    campaignKeys.has(row.campaign_name.toLowerCase()) ||
+    campaignKeys.has(row.campaign_id.toLowerCase())
+  );
+}
+
 /**
  * Gasto total do Meta Ads no período (soma das contas ativas — ou só uma,
- * quando `accountId` é informado). Usa o cache do getInsights (~30 min).
+ * quando `accountId` é informado; só campanhas de uma oferta, quando
+ * `campaignKeys` é informado). Usa o cache do getInsights (~30 min).
  * `ok=false` se alguma conta falhar — o gasto retorna o que deu certo.
  */
 export async function getTotalSpend(
   admin: SupabaseClient,
   range: DateRange,
   accountId?: string,
+  campaignKeys?: Set<string> | null,
 ): Promise<{ spend: number; ok: boolean; fetchedAt: number | null }> {
   const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   if (accounts.length === 0) return { spend: 0, ok: true, fetchedAt: null };
@@ -57,7 +73,12 @@ export async function getTotalSpend(
     accounts.map((a) => getInsights(a.ad_account_id, a.token, since, until)),
   );
   const spend = results.reduce(
-    (sum, r) => sum + r.rows.reduce((s, row) => s + row.spend, 0),
+    (sum, r) =>
+      sum +
+      r.rows.reduce(
+        (s, row) => s + (matchesCampaign(row, campaignKeys) ? row.spend : 0),
+        0,
+      ),
     0,
   );
   const ok = results.every((r) => r.ok);
@@ -77,6 +98,7 @@ export async function getTotalClicks(
   admin: SupabaseClient,
   range: DateRange,
   accountId?: string,
+  campaignKeys?: Set<string> | null,
 ): Promise<{ clicks: number; ok: boolean }> {
   const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   if (accounts.length === 0) return { clicks: 0, ok: true };
@@ -88,7 +110,14 @@ export async function getTotalClicks(
   const clicks = results.reduce(
     (sum, r) =>
       sum +
-      r.rows.reduce((s, row) => s + (row.linkClicks || row.clicks), 0),
+      r.rows.reduce(
+        (s, row) =>
+          s +
+          (matchesCampaign(row, campaignKeys)
+            ? row.linkClicks || row.clicks
+            : 0),
+        0,
+      ),
     0,
   );
   const ok = results.every((r) => r.ok);
@@ -121,11 +150,13 @@ export async function getAdNameMap(
   return map;
 }
 
-/** Gasto por dia (YYYY-MM-DD → total), somando todas as contas ativas. */
+/** Gasto por dia (YYYY-MM-DD → total), somando todas as contas ativas (ou só
+ *  as campanhas de uma oferta, quando `campaignKeys` é informado). */
 export async function getDailySpendMap(
   admin: SupabaseClient,
   range: DateRange,
   accountId?: string,
+  campaignKeys?: Set<string> | null,
 ): Promise<Map<string, number>> {
   const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   const map = new Map<string, number>();
@@ -136,7 +167,10 @@ export async function getDailySpendMap(
     accounts.map((a) => getDailySpend(a.ad_account_id, a.token, since, until)),
   );
   for (const rows of results) {
-    for (const r of rows) map.set(r.day, (map.get(r.day) ?? 0) + r.spend);
+    for (const r of rows) {
+      if (!matchesCampaign(r, campaignKeys)) continue;
+      map.set(r.day, (map.get(r.day) ?? 0) + r.spend);
+    }
   }
   return map;
 }

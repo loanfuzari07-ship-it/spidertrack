@@ -5,11 +5,23 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+export type DashboardItemSpan = "sm" | "lg" | "full";
+
 export interface DashboardBlock {
   id: string;
   title: string;
   node: ReactNode;
+  /** Largura do item na grade. "sm" (padrão) = 1 coluna — cartões de número.
+   *  "lg" = metade da largura no desktop — cartões de conteúdo (listas,
+   *  mapa, funil). "full" = a tela inteira — gráficos de série temporal. */
+  span?: DashboardItemSpan;
 }
+
+const SPAN_CLASS: Record<DashboardItemSpan, string> = {
+  sm: "",
+  lg: "sm:col-span-2",
+  full: "sm:col-span-2 xl:col-span-4",
+};
 
 /**
  * Envolve os blocos de uma tela e permite reordená-los arrastando (modo
@@ -117,15 +129,17 @@ export function DashboardCustomizer({
 
       {editing ? (
         <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
-          Arraste os blocos pela alça para reordenar a tela. A ordem fica
-          salva só neste navegador.
+          Arraste cada item pela alça pra reordenar — dá pra trocar só dois
+          cards de lugar, sem mudar o resto da tela. A ordem fica salva só
+          neste navegador.
         </p>
       ) : null}
 
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {order.map((id) => {
           const block = byId.get(id);
           if (!block) return null;
+          const span = block.span ?? "sm";
           return (
             <div
               key={id}
@@ -142,7 +156,8 @@ export function DashboardCustomizer({
                 moveTo(id);
               }}
               className={cn(
-                "rounded-lg transition",
+                "min-w-0 rounded-lg transition",
+                SPAN_CLASS[span],
                 editing &&
                   "cursor-grab ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
               )}

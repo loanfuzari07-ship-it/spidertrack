@@ -1,9 +1,14 @@
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+"use client";
 
-/** "agora mesmo" / "há 1 min" / "há 12 min" a partir de um timestamp (ms). */
+import { Loader2, RefreshCw } from "lucide-react";
+import { useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toaster";
+
+/** "agora mesmo" / "há 1 min" / "há 12 min" a partir de um timestamp (ms). Sem
+ *  conta de anúncio ativa (`fetchedAt` nulo) explica por que não há hora. */
 function timeAgoLabel(fetchedAt: number | null): string {
-  if (fetchedAt == null) return "";
+  if (fetchedAt == null) return "Sem conta de anúncio ativa pra atualizar";
   const minutes = Math.max(0, Math.round((Date.now() - fetchedAt) / 60_000));
   if (minutes < 1) return "Atualizado agora mesmo";
   if (minutes === 1) return "Atualizado há 1 min";
@@ -11,9 +16,10 @@ function timeAgoLabel(fetchedAt: number | null): string {
 }
 
 /**
- * Indicador "Atualizado há X min" + botão verde "Atualizar" que dispara uma
- * Server Action (revalida o cache de insights da Meta sob demanda). Usado em
- * qualquer página cujos dados dependam do cache de ~30 min da API da Meta.
+ * Indicador "Atualizado há X min" + botão "Atualizar" que dispara uma Server
+ * Action (revalida o cache de insights da Meta sob demanda). Cliente (não só
+ * `<form action>`) pra dar feedback visível na hora — spinner + toast —
+ * mesmo quando o resultado não muda nada na tela (ex.: sem conta ativa).
  */
 export function RefreshBar({
   fetchedAt,
@@ -23,23 +29,38 @@ export function RefreshBar({
   fetchedAt: number | null;
   action: () => Promise<void>;
 }) {
+  const [pending, startTransition] = useTransition();
+
+  function onRefresh() {
+    startTransition(async () => {
+      try {
+        await action();
+        toast.success("Dados atualizados.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Falha ao atualizar.");
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col items-end gap-1">
-      {fetchedAt != null ? (
-        <span className="text-xs text-muted-foreground">
-          {timeAgoLabel(fetchedAt)}
-        </span>
-      ) : null}
-      <form action={action}>
-        <Button
-          type="submit"
-          size="sm"
-          className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
+      <span className="text-xs text-muted-foreground">
+        {timeAgoLabel(fetchedAt)}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        disabled={pending}
+        onClick={onRefresh}
+        className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+      >
+        {pending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
           <RefreshCw className="size-4" />
-          Atualizar
-        </Button>
-      </form>
+        )}
+        {pending ? "Atualizando…" : "Atualizar"}
+      </Button>
     </div>
   );
 }

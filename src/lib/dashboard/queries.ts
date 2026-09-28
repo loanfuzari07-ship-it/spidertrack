@@ -105,37 +105,77 @@ interface PurchaseLite {
   utm_content: string | null;
 }
 
+/** Chaves (`product_key`) de `product_settings` marcadas com a Oferta dada —
+ *  `null` = sem filtro (parâmetro "all" ou vazio). Memoizado por request. */
+const loadOfertaProductKeys = cache(
+  async (db: DB, oferta: string): Promise<Set<string> | null> => {
+    if (!oferta || oferta === "all") return null;
+    const { data } = await db
+      .from("product_settings")
+      .select("product_key, oferta")
+      .eq("oferta", oferta);
+    return new Set((data ?? []).map((r) => r.product_key as string));
+  },
+);
+
 const loadPurchases = cache(
-  async (db: DB, range: DateRange): Promise<PurchaseLite[]> => {
+  async (db: DB, range: DateRange, oferta: string = "all"): Promise<PurchaseLite[]> => {
     const q = scopeRange(
       db.from("purchases").select(PURCHASE_COLS).limit(CAP),
       range,
     );
     const { data } = await q;
-    return (data as unknown as PurchaseLite[]) ?? [];
+    const rows = (data as unknown as PurchaseLite[]) ?? [];
+    const keys = await loadOfertaProductKeys(db, oferta);
+    if (!keys) return rows;
+    return rows.filter((p) => {
+      const k = productKey(p.product_id, p.product_name);
+      return k ? keys.has(k) : false;
+    });
   },
 );
 
 /**
  * Visitantes distintos com algum dos eventos informados. `namesKey` (string) é a
  * chave do cache — objetos/arrays novos a cada chamada furariam a memoização.
+ * `campaignKeysKey` (string, campanhas separadas por vírgula, já em minúsculo)
+ * filtra por oferta via UTM da campanha — "" = sem filtro (todas).
  */
 const loadDistinctUsers = cache(
-  async (db: DB, range: DateRange, namesKey: string): Promise<number> => {
+  async (
+    db: DB,
+    range: DateRange,
+    namesKey: string,
+    campaignKeysKey: string = "",
+  ): Promise<number> => {
     const q = scopeRange(
       db
         .from("events_log")
-        .select("trck_user_id")
+        .select("trck_user_id, utm_campaign")
         .in("event_name", namesKey.split(","))
         .limit(CAP),
       range,
     );
     const { data } = await q;
-    return new Set((data ?? []).map((r) => r.trck_user_id).filter(Boolean)).size;
+    const rows = (data ?? []) as { trck_user_id: string | null; utm_campaign: string | null }[];
+    const campaignKeys = campaignKeysKey ? new Set(campaignKeysKey.split(",")) : null;
+    const filtered = campaignKeys
+      ? rows.filter((r) => {
+          const mk = utmMatchKey(r.utm_campaign);
+          return mk ? campaignKeys.has(mk.toLowerCase()) : false;
+        })
+      : rows;
+    return new Set(filtered.map((r) => r.trck_user_id).filter(Boolean)).size;
   },
 );
 const CHECKOUT_KEY = CHECKOUT_NAMES.join(",");
 const PAGEVIEW_KEY = PAGEVIEW_NAMES.join(",");
+
+/** Serializa um Set de chaves de campanha pra usar como argumento de cache
+ *  (primitivo, estável) — `null`/vazio = sem filtro. */
+function campaignKeysKeyOf(keys: Set<string> | null | undefined): string {
+  return keys ? [...keys].sort().join(",") : "";
+}
 
 export interface Overview {
   visitors: number;
@@ -147,12 +187,16 @@ export interface Overview {
   funnel: { visited: number; checkout: number; purchased: number };
 }
 
-export async function getOverview(db: DB, range: DateRange): Promise<Overview> {
+export async function getOverview(
+  db: DB,
+  range: DateRange,
+  oferta?: string,
+): Promise<Overview> {
   const [visitors, events, checkout, purchasesAll] = await Promise.all([
     countRows(db, "visitors", range),
     countRows(db, "events_log", range),
     loadDistinctUsers(db, range, CHECKOUT_KEY),
-    loadPurchases(db, range),
+    loadPurchases(db, range, oferta),
   ]);
 
   const paid = purchasesAll.filter(
@@ -188,11 +232,14 @@ export interface FunnelCounts {
 export async function getFunnel(
   db: DB,
   range: DateRange,
+  oferta?: string,
+  campaignKeys?: Set<string> | null,
 ): Promise<FunnelCounts> {
+  const ckk = campaignKeysKeyOf(campaignKeys);
   const [pageviews, ics, rows] = await Promise.all([
-    loadDistinctUsers(db, range, PAGEVIEW_KEY),
-    loadDistinctUsers(db, range, CHECKOUT_KEY),
-    loadPurchases(db, range),
+    loadDistinctUsers(db, range, PAGEVIEW_KEY, ckk),
+    loadDistinctUsers(db, range, CHECKOUT_KEY, ckk),
+    loadPurchases(db, range, oferta),
   ]);
 
   const salesApproved = rows.filter(
@@ -233,8 +280,9 @@ export interface SalesStatus {
 export async function getSalesStatusCounts(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<SalesStatus> {
-  const data = await loadPurchases(db, range);
+  const data = await loadPurchases(db, range, oferta);
   let pending = 0;
   let pendingValue = 0;
   let refunded = 0;
@@ -266,8 +314,9 @@ export interface SalesGeo {
 export async function getSalesByCountry(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<SalesGeo> {
-  const data = await loadPurchases(db, range);
+  const data = await loadPurchases(db, range, oferta);
   const paid = data.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
   const m = new Map<string, number>();
@@ -350,6 +399,7 @@ export interface SalesBreakdown {
 export async function getSalesBreakdown(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<SalesBreakdown> {
   const q = scopeRange(
     db
@@ -358,8 +408,18 @@ export async function getSalesBreakdown(
       .limit(CAP),
     range,
   );
-  const { data } = await q;
-  const paid = (data ?? []).filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
+  const [{ data }, ofertaKeys] = await Promise.all([
+    q,
+    loadOfertaProductKeys(db, oferta ?? "all"),
+  ]);
+  let rows = data ?? [];
+  if (ofertaKeys) {
+    rows = rows.filter((p) => {
+      const k = productKey(p.product_id, p.product_name);
+      return k ? ofertaKeys.has(k) : false;
+    });
+  }
+  const paid = rows.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
   const PAY_ORDER = ["pix", "cartao", "boleto", "outros"];
   const payMap = new Map<string, SalesSlice>();
@@ -424,8 +484,9 @@ export interface RevenueDay {
 export async function getRevenueDaily(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<RevenueDay[]> {
-  const data = await loadPurchases(db, range);
+  const data = await loadPurchases(db, range, oferta);
 
   const map = new Map<string, { revenue: number; orders: number }>();
   for (const p of data) {
@@ -1027,8 +1088,9 @@ export interface ChargebackStats {
 export async function getChargebackStats(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<ChargebackStats> {
-  const rows = await loadPurchases(db, range);
+  const rows = await loadPurchases(db, range, oferta);
   let count = 0;
   let value = 0;
   let base = 0; // aprovados + chargeback (denominador da taxa)
@@ -1066,12 +1128,19 @@ export interface ApprovalByMethod {
 export async function getApprovalByMethod(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<ApprovalByMethod[]> {
   const q = scopeRange(
-    db.from("purchases").select("value, status, raw_webhook").limit(CAP),
+    db
+      .from("purchases")
+      .select("value, status, raw_webhook, product_id, product_name")
+      .limit(CAP),
     range,
   );
-  const { data } = await q;
+  const [{ data }, ofertaKeys] = await Promise.all([
+    q,
+    loadOfertaProductKeys(db, oferta ?? "all"),
+  ]);
 
   const PAY_ORDER: { key: string; label: string }[] = [
     { key: "cartao", label: "Cartão" },
@@ -1080,7 +1149,21 @@ export async function getApprovalByMethod(
   ];
   const acc = new Map(PAY_ORDER.map((p) => [p.key, { approved: 0, failed: 0 }]));
 
-  for (const p of (data ?? []) as { value: number | null; status: string | null; raw_webhook: unknown }[]) {
+  let rows = (data ?? []) as {
+    value: number | null;
+    status: string | null;
+    raw_webhook: unknown;
+    product_id: string | null;
+    product_name: string | null;
+  }[];
+  if (ofertaKeys) {
+    rows = rows.filter((p) => {
+      const k = productKey(p.product_id, p.product_name);
+      return k ? ofertaKeys.has(k) : false;
+    });
+  }
+
+  for (const p of rows) {
     if (isPendingStatus(p.status)) continue;
     const pay = paymentLabel(p.raw_webhook);
     const cur = acc.get(pay.key);
@@ -1119,8 +1202,9 @@ const SP_HOUR_FMT = new Intl.DateTimeFormat("en-US", {
 export async function getSalesByHour(
   db: DB,
   range: DateRange,
+  oferta?: string,
 ): Promise<SalesByHour[]> {
-  const rows = await loadPurchases(db, range);
+  const rows = await loadPurchases(db, range, oferta);
   const buckets: SalesByHour[] = Array.from({ length: 24 }, (_, hour) => ({
     hour,
     count: 0,

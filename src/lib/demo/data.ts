@@ -357,12 +357,20 @@ function eventCounts(s: DemoSet): { name: string; total: number }[] {
   ].sort((a, b) => b.total - a.total);
 }
 
+/** Filtra compras fictícias por Oferta (mesma regra de `demoOfertaOf`) —
+ *  `undefined`/"all" = sem filtro. Usada por todos os agregados abaixo. */
+function filterByOferta(rows: DemoPurchase[], oferta?: string): DemoPurchase[] {
+  if (!oferta || oferta === "all") return rows;
+  return rows.filter((p) => demoOfertaOf(p.product) === oferta);
+}
+
 // ── agregados expostos ao painel ─────────────────────────────────────────────
-export function overview(range: DateRange): Overview {
+export function overview(range: DateRange, oferta?: string): Overview {
   const s = demoSet(range);
+  const paid = filterByOferta(s.paid, oferta);
   const events = eventCounts(s).reduce((sum, e) => sum + e.total, 0);
-  const purchases = s.paid.length;
-  const revenue = s.revenue;
+  const purchases = paid.length;
+  const revenue = paid.reduce((sum, p) => sum + p.value, 0);
   return {
     visitors: s.visitors,
     events,
@@ -378,23 +386,44 @@ export function overview(range: DateRange): Overview {
   };
 }
 
-export function funnel(range: DateRange): FunnelCounts {
+export function funnel(
+  range: DateRange,
+  oferta?: string,
+  campaignKeys?: Set<string> | null,
+): FunnelCounts {
   const s = demoSet(range);
+  const purchasesInit =
+    oferta && oferta !== "all"
+      ? s.purchases.filter((p) => demoOfertaOf(p.product) === oferta)
+      : s.purchases;
+  const paid = filterByOferta(s.paid, oferta);
+
+  // Cliques/Vis.Página/ICs não têm produto associado — aproxima pela fração de
+  // pedidos que vieram das campanhas da oferta (mesma premissa usada no gasto).
+  const scale = campaignKeys
+    ? (() => {
+        const matched = s.purchases.filter((p) =>
+          campaignKeys.has(p.campaign.id.toLowerCase()),
+        ).length;
+        return s.purchases.length > 0 ? matched / s.purchases.length : 0;
+      })()
+    : 1;
+
   return {
-    pageviews: Math.round(s.visitors * 0.94),
-    ics: s.checkouts,
-    salesInit: s.purchases.length,
-    salesApproved: s.paid.filter((p) => !isPending(p.status)).length,
+    pageviews: Math.round(s.visitors * 0.94 * scale),
+    ics: Math.round(s.checkouts * scale),
+    salesInit: purchasesInit.length,
+    salesApproved: paid.filter((p) => !isPending(p.status)).length,
   };
 }
 
-export function salesStatus(range: DateRange): SalesStatus {
+export function salesStatus(range: DateRange, oferta?: string): SalesStatus {
   const s = demoSet(range);
   let pending = 0;
   let pendingValue = 0;
   let refunded = 0;
   let refundedValue = 0;
-  for (const p of s.purchases) {
+  for (const p of filterByOferta(s.purchases, oferta)) {
     if (isRefund(p.status)) {
       refunded++;
       refundedValue += p.value;
@@ -406,28 +435,29 @@ export function salesStatus(range: DateRange): SalesStatus {
   return { pending, pendingValue, refunded, refundedValue };
 }
 
-export function salesByCountry(range: DateRange): SalesGeo {
+export function salesByCountry(range: DateRange, oferta?: string): SalesGeo {
   const s = demoSet(range);
+  const paid = filterByOferta(s.paid, oferta);
   const m = new Map<string, number>();
-  for (const p of s.paid) {
+  for (const p of paid) {
     m.set(p.geo.country, (m.get(p.geo.country) ?? 0) + 1);
   }
   return {
     countries: [...m.entries()]
       .map(([key, count]) => ({ key, count }))
       .sort((a, b) => b.count - a.count),
-    total: s.paid.length,
+    total: paid.length,
     noCountry: 0,
   };
 }
 
-export function salesBreakdown(range: DateRange): SalesBreakdown {
+export function salesBreakdown(range: DateRange, oferta?: string): SalesBreakdown {
   const s = demoSet(range);
   const payMap = new Map<string, SalesSlice>();
   const prodMap = new Map<string, SalesSlice>();
   let totalRevenue = 0;
 
-  for (const p of s.paid) {
+  for (const p of filterByOferta(s.paid, oferta)) {
     totalRevenue += p.value;
     const pay = payMap.get(p.payment.key) ?? {
       key: p.payment.key,
@@ -452,7 +482,7 @@ export function salesBreakdown(range: DateRange): SalesBreakdown {
   }
 
   return {
-    total: s.paid.length,
+    total: [...prodMap.values()].reduce((sum, p) => sum + p.count, 0),
     totalRevenue,
     byPayment: PAYMENTS.map((p) => payMap.get(p.key)).filter(
       Boolean,
@@ -468,10 +498,10 @@ export function eventsByType(range: DateRange): EventTypeRow[] {
   }));
 }
 
-export function revenueDaily(range: DateRange): RevenueDay[] {
+export function revenueDaily(range: DateRange, oferta?: string): RevenueDay[] {
   const s = demoSet(range);
   const map = new Map<string, { revenue: number; orders: number }>();
-  for (const p of s.paid) {
+  for (const p of filterByOferta(s.paid, oferta)) {
     const cur = map.get(p.day) ?? { revenue: 0, orders: 0 };
     cur.revenue += p.value;
     cur.orders += 1;
@@ -499,10 +529,11 @@ export function faturamento(range: DateRange): Faturamento {
 
 const isChargeback = (s: string) => /chargeback|dispute/i.test(s);
 
-export function chargebackStats(range: DateRange): ChargebackStats {
+export function chargebackStats(range: DateRange, oferta?: string): ChargebackStats {
   const s = demoSet(range);
-  const cb = s.purchases.filter((p) => isChargeback(p.status));
-  const base = s.purchases.filter(
+  const rows = filterByOferta(s.purchases, oferta);
+  const cb = rows.filter((p) => isChargeback(p.status));
+  const base = rows.filter(
     (p) => isChargeback(p.status) || !isRefund(p.status),
   ).length;
   return {
@@ -520,10 +551,11 @@ const DEMO_APPROVAL_RATE: Record<string, number> = {
   boleto: 0.83,
 };
 
-export function approvalByMethod(range: DateRange): ApprovalByMethod[] {
+export function approvalByMethod(range: DateRange, oferta?: string): ApprovalByMethod[] {
   const s = demoSet(range);
+  const paid = filterByOferta(s.paid, oferta);
   return PAYMENTS.filter((p) => p.key !== "outros").map((p) => {
-    const approved = s.paid.filter((x) => x.payment.key === p.key).length;
+    const approved = paid.filter((x) => x.payment.key === p.key).length;
     const rate = DEMO_APPROVAL_RATE[p.key] ?? 0.9;
     const failed = Math.max(0, Math.round((approved * (1 - rate)) / rate));
     return { key: p.key, label: p.label, approved, failed, rate };
@@ -536,14 +568,14 @@ const SP_HOUR_FMT = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-export function salesByHour(range: DateRange): SalesByHour[] {
+export function salesByHour(range: DateRange, oferta?: string): SalesByHour[] {
   const s = demoSet(range);
   const buckets: SalesByHour[] = Array.from({ length: 24 }, (_, hour) => ({
     hour,
     count: 0,
     revenue: 0,
   }));
-  for (const p of s.paid) {
+  for (const p of filterByOferta(s.paid, oferta)) {
     const h = Number(SP_HOUR_FMT.format(new Date(p.created_at))) % 24;
     buckets[h].count += 1;
     buckets[h].revenue += p.value;
@@ -837,19 +869,44 @@ export function saleDetail(purchaseId: string): DemoSaleDetail {
 }
 
 // ── Meta Ads (gasto/cliques/campanhas) ───────────────────────────────────────
+/** Fração do gasto/cliques atribuível às campanhas de uma oferta (mesmo
+ *  `share` usado em `campaigns()`) — `null` = sem filtro (100%). */
+function campaignShare(campaignKeys?: Set<string> | null): number {
+  if (!campaignKeys) return 1;
+  return CAMPAIGNS.filter((c) => campaignKeys.has(c.id.toLowerCase())).reduce(
+    (s, c) => s + c.share,
+    0,
+  );
+}
+
 export function totalSpend(
   range: DateRange,
+  campaignKeys?: Set<string> | null,
 ): { spend: number; ok: boolean; fetchedAt: number | null } {
-  return { spend: demoSet(range).spend, ok: true, fetchedAt: Date.now() };
+  return {
+    spend: demoSet(range).spend * campaignShare(campaignKeys),
+    ok: true,
+    fetchedAt: Date.now(),
+  };
 }
 
-export function totalClicks(range: DateRange): { clicks: number; ok: boolean } {
-  return { clicks: demoSet(range).clicks, ok: true };
+export function totalClicks(
+  range: DateRange,
+  campaignKeys?: Set<string> | null,
+): { clicks: number; ok: boolean } {
+  return {
+    clicks: Math.round(demoSet(range).clicks * campaignShare(campaignKeys)),
+    ok: true,
+  };
 }
 
-export function dailySpendMap(range: DateRange): Map<string, number> {
+export function dailySpendMap(
+  range: DateRange,
+  campaignKeys?: Set<string> | null,
+): Map<string, number> {
   const s = demoSet(range);
-  return new Map(s.days.map((d) => [d.day, d.spend]));
+  const share = campaignShare(campaignKeys);
+  return new Map(s.days.map((d) => [d.day, d.spend * share]));
 }
 
 export function adNameMap(): Record<string, string> {

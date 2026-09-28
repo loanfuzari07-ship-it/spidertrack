@@ -30,40 +30,62 @@ export async function getSource(): Promise<Source> {
 }
 
 // ── agregados do banco ───────────────────────────────────────────────────────
-export const getOverview = (s: Source, r: DateRange) =>
-  s.db ? q.getOverview(s.db, r) : Promise.resolve(demo.overview(r));
+// `oferta` filtra por uma Oferta (definida em Configurações → Produtos);
+// undefined/"all" = todas. `campaignKeys` (Vis.Página/ICs) vem do mapa
+// campanha→oferta (`getOfertaMaps`) — quem chama monta o Set uma vez por página.
+export const getOverview = (s: Source, r: DateRange, oferta?: string) =>
+  s.db ? q.getOverview(s.db, r, oferta) : Promise.resolve(demo.overview(r, oferta));
 
-export const getFunnel = (s: Source, r: DateRange) =>
-  s.db ? q.getFunnel(s.db, r) : Promise.resolve(demo.funnel(r));
+export const getFunnel = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  campaignKeys?: Set<string> | null,
+) =>
+  s.db
+    ? q.getFunnel(s.db, r, oferta, campaignKeys)
+    : Promise.resolve(demo.funnel(r, oferta, campaignKeys));
 
-export const getSalesStatusCounts = (s: Source, r: DateRange) =>
-  s.db ? q.getSalesStatusCounts(s.db, r) : Promise.resolve(demo.salesStatus(r));
+export const getSalesStatusCounts = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getSalesStatusCounts(s.db, r, oferta)
+    : Promise.resolve(demo.salesStatus(r, oferta));
 
-export const getSalesByCountry = (s: Source, r: DateRange) =>
-  s.db ? q.getSalesByCountry(s.db, r) : Promise.resolve(demo.salesByCountry(r));
+export const getSalesByCountry = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getSalesByCountry(s.db, r, oferta)
+    : Promise.resolve(demo.salesByCountry(r, oferta));
 
-export const getSalesBreakdown = (s: Source, r: DateRange) =>
-  s.db ? q.getSalesBreakdown(s.db, r) : Promise.resolve(demo.salesBreakdown(r));
+export const getSalesBreakdown = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getSalesBreakdown(s.db, r, oferta)
+    : Promise.resolve(demo.salesBreakdown(r, oferta));
 
 export const getEventsByType = (s: Source, r: DateRange) =>
   s.db ? q.getEventsByType(s.db, r) : Promise.resolve(demo.eventsByType(r));
 
-export const getRevenueDaily = (s: Source, r: DateRange) =>
-  s.db ? q.getRevenueDaily(s.db, r) : Promise.resolve(demo.revenueDaily(r));
+export const getRevenueDaily = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getRevenueDaily(s.db, r, oferta)
+    : Promise.resolve(demo.revenueDaily(r, oferta));
 
 export const getFaturamento = (s: Source, r: DateRange) =>
   s.db ? q.getFaturamento(s.db, r) : Promise.resolve(demo.faturamento(r));
 
-export const getChargebackStats = (s: Source, r: DateRange) =>
-  s.db ? q.getChargebackStats(s.db, r) : Promise.resolve(demo.chargebackStats(r));
-
-export const getApprovalByMethod = (s: Source, r: DateRange) =>
+export const getChargebackStats = (s: Source, r: DateRange, oferta?: string) =>
   s.db
-    ? q.getApprovalByMethod(s.db, r)
-    : Promise.resolve(demo.approvalByMethod(r));
+    ? q.getChargebackStats(s.db, r, oferta)
+    : Promise.resolve(demo.chargebackStats(r, oferta));
 
-export const getSalesByHour = (s: Source, r: DateRange) =>
-  s.db ? q.getSalesByHour(s.db, r) : Promise.resolve(demo.salesByHour(r));
+export const getApprovalByMethod = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getApprovalByMethod(s.db, r, oferta)
+    : Promise.resolve(demo.approvalByMethod(r, oferta));
+
+export const getSalesByHour = (s: Source, r: DateRange, oferta?: string) =>
+  s.db
+    ? q.getSalesByHour(s.db, r, oferta)
+    : Promise.resolve(demo.salesByHour(r, oferta));
 
 export const getLifetimeRevenue = (s: Source) =>
   s.db ? q.getLifetimeRevenue(s.db) : Promise.resolve(demo.lifetimeRevenue());
@@ -105,20 +127,36 @@ export const getEvents = (
 
 // ── Meta Ads ─────────────────────────────────────────────────────────────────
 // `accountId` filtra por uma conta de anúncio (undefined/"all" = todas).
-export const getTotalSpend = (s: Source, r: DateRange, accountId?: string) =>
+// `campaignKeys` filtra por oferta (campanha→oferta, via `getOfertaMaps`).
+export const getTotalSpend = (
+  s: Source,
+  r: DateRange,
+  accountId?: string,
+  campaignKeys?: Set<string> | null,
+) =>
   s.admin
-    ? spend.getTotalSpend(s.admin, r, accountId)
-    : Promise.resolve(demo.totalSpend(r));
+    ? spend.getTotalSpend(s.admin, r, accountId, campaignKeys)
+    : Promise.resolve(demo.totalSpend(r, campaignKeys));
 
-export const getTotalClicks = (s: Source, r: DateRange, accountId?: string) =>
+export const getTotalClicks = (
+  s: Source,
+  r: DateRange,
+  accountId?: string,
+  campaignKeys?: Set<string> | null,
+) =>
   s.admin
-    ? spend.getTotalClicks(s.admin, r, accountId)
-    : Promise.resolve(demo.totalClicks(r));
+    ? spend.getTotalClicks(s.admin, r, accountId, campaignKeys)
+    : Promise.resolve(demo.totalClicks(r, campaignKeys));
 
-export const getDailySpendMap = (s: Source, r: DateRange, accountId?: string) =>
+export const getDailySpendMap = (
+  s: Source,
+  r: DateRange,
+  accountId?: string,
+  campaignKeys?: Set<string> | null,
+) =>
   s.admin
-    ? spend.getDailySpendMap(s.admin, r, accountId)
-    : Promise.resolve(demo.dailySpendMap(r));
+    ? spend.getDailySpendMap(s.admin, r, accountId, campaignKeys)
+    : Promise.resolve(demo.dailySpendMap(r, campaignKeys));
 
 export const getAdNameMap = (s: Source, r: DateRange) =>
   s.admin ? spend.getAdNameMap(s.admin, r) : Promise.resolve(demo.adNameMap());

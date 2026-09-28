@@ -8,6 +8,7 @@ import {
   Settings,
   SlidersHorizontal,
   Tag,
+  UserRound,
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -52,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Configurações",
         icon: SlidersHorizontal,
       },
+      { href: "/dashboard/minha-conta", label: "Minha conta", icon: UserRound },
       { href: "/dashboard/instrucoes", label: "Instruções", icon: BookOpen },
     ],
   },

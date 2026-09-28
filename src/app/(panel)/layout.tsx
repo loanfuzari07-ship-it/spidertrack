@@ -37,8 +37,17 @@ export default async function PanelLayout({
     redirect("/login");
   }
 
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const firstName = typeof meta.first_name === "string" ? meta.first_name : null;
+  const lastName = typeof meta.last_name === "string" ? meta.last_name : null;
+
   return (
-    <PanelShell email={user.email ?? null} lifetimeRevenue={lifetimeRevenue}>
+    <PanelShell
+      email={user.email ?? null}
+      firstName={firstName}
+      lastName={lastName}
+      lifetimeRevenue={lifetimeRevenue}
+    >
       {children}
     </PanelShell>
   );

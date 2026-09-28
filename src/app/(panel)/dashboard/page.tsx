@@ -3,6 +3,7 @@ import { AccountFilter } from "@/components/dashboard/account-filter";
 import { ApprovalPanel } from "@/components/dashboard/approval-panel";
 import { PaymentDonut, RevenueChart, SalesByHourChart } from "@/components/dashboard/charts";
 import { Funnel } from "@/components/dashboard/funnel";
+import { OfertaFilter } from "@/components/dashboard/oferta-filter";
 import { SalesMap } from "@/components/dashboard/sales-map";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { RefreshBar } from "@/components/dashboard/refresh-bar";
@@ -24,6 +25,7 @@ import {
   getDailySpendMap,
   getFinanceSettings,
   getFunnel,
+  getOfertaMaps,
   getOverview,
   getRevenueDaily,
   getSalesBreakdown,
@@ -50,11 +52,13 @@ export default async function OverviewPage({
     from?: string;
     to?: string;
     account?: string;
+    oferta?: string;
   }>;
 }) {
   const sp = await searchParams;
   const range = parseRange(sp.range, sp.from, sp.to);
   const accountParam = sp.account ?? "all";
+  const ofertaParam = sp.oferta ?? "all";
   const src = await getSource();
 
   const accounts = src.admin
@@ -63,6 +67,21 @@ export default async function OverviewPage({
         label: a.label,
       }))
     : demo.campaigns(range).accounts;
+
+  // Monta o mapa campanha→oferta uma vez (revenue por oferta + gasto por oferta
+  // usam o mesmo mapa; ver aba Ofertas). "Todas as ofertas" = sem filtro.
+  const ofertaMaps = await getOfertaMaps(src, range);
+  const ofertaOptions = [...new Set(ofertaMaps.revenue.keys())].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const campaignKeysForOferta =
+    ofertaParam !== "all"
+      ? new Set(
+          [...ofertaMaps.campaignOferta.entries()]
+            .filter(([, o]) => o === ofertaParam)
+            .map(([k]) => k),
+        )
+      : null;
 
   const [
     overview,
@@ -79,18 +98,18 @@ export default async function OverviewPage({
     salesHour,
     finance,
   ] = await Promise.all([
-    getOverview(src, range),
-    getRevenueDaily(src, range),
-    getSalesByCountry(src, range),
-    getTotalSpend(src, range, accountParam),
-    getDailySpendMap(src, range, accountParam),
-    getSalesBreakdown(src, range),
-    getSalesStatusCounts(src, range),
-    getFunnel(src, range),
-    getTotalClicks(src, range, accountParam),
-    getChargebackStats(src, range),
-    getApprovalByMethod(src, range),
-    getSalesByHour(src, range),
+    getOverview(src, range, ofertaParam),
+    getRevenueDaily(src, range, ofertaParam),
+    getSalesByCountry(src, range, ofertaParam),
+    getTotalSpend(src, range, accountParam, campaignKeysForOferta),
+    getDailySpendMap(src, range, accountParam, campaignKeysForOferta),
+    getSalesBreakdown(src, range, ofertaParam),
+    getSalesStatusCounts(src, range, ofertaParam),
+    getFunnel(src, range, ofertaParam, campaignKeysForOferta),
+    getTotalClicks(src, range, accountParam, campaignKeysForOferta),
+    getChargebackStats(src, range, ofertaParam),
+    getApprovalByMethod(src, range, ofertaParam),
+    getSalesByHour(src, range, ofertaParam),
     getFinanceSettings(src),
   ]);
 
@@ -117,42 +136,59 @@ export default async function OverviewPage({
 
   const blocks: DashboardBlock[] = [
     {
-      id: "kpis",
-      title: "KPIs principais",
+      id: "faturamento",
+      title: "Faturamento total",
       node: (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Faturamento total"
-            value={formatCurrency(faturamentoLiquido)}
-            hint={
-              finance.platformFeeRate > 0
-                ? `líquido · já descontada a taxa da plataforma (${(finance.platformFeeRate * 100).toFixed(1)}%)`
-                : "líquido de taxa da plataforma"
-            }
-          />
-          <StatCard
-            label="Investimento (Meta)"
-            value={formatCurrency(spend.spend)}
-            hint={spend.ok ? undefined : "parcial (erro em conta)"}
-          />
-          <StatCard
-            label="ROAS"
-            value={roas !== null ? `${roas.toFixed(2)}x` : "—"}
-            labelClassName="text-success"
-            valueClassName="text-success"
-          />
-          <StatCard
-            label="Lucro"
-            value={formatCurrency(lucro)}
-            labelClassName="text-success"
-            valueClassName={lucro >= 0 ? "text-success" : "text-destructive"}
-          />
-        </div>
+        <StatCard
+          label="Faturamento total"
+          value={formatCurrency(faturamentoLiquido)}
+          hint={
+            finance.platformFeeRate > 0
+              ? `líquido · já descontada a taxa da plataforma (${(finance.platformFeeRate * 100).toFixed(1)}%)`
+              : "líquido de taxa da plataforma"
+          }
+        />
+      ),
+    },
+    {
+      id: "investimento",
+      title: "Investimento (Meta)",
+      node: (
+        <StatCard
+          label="Investimento (Meta)"
+          value={formatCurrency(spend.spend)}
+          hint={spend.ok ? undefined : "parcial (erro em conta)"}
+        />
+      ),
+    },
+    {
+      id: "roas",
+      title: "ROAS",
+      node: (
+        <StatCard
+          label="ROAS"
+          value={roas !== null ? `${roas.toFixed(2)}x` : "—"}
+          labelClassName="text-success"
+          valueClassName="text-success"
+        />
+      ),
+    },
+    {
+      id: "lucro",
+      title: "Lucro",
+      node: (
+        <StatCard
+          label="Lucro"
+          value={formatCurrency(lucro)}
+          labelClassName="text-success"
+          valueClassName={lucro >= 0 ? "text-success" : "text-destructive"}
+        />
       ),
     },
     {
       id: "spiderflow",
       title: "SpiderFlow — funil de conversão",
+      span: "full",
       node: (
         <Card>
           <CardHeader>
@@ -173,167 +209,202 @@ export default async function OverviewPage({
       ),
     },
     {
-      id: "linha2",
-      title: "ARPU / CPA médio + SpiderCountry",
+      id: "arpu",
+      title: "ARPU",
       node: (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="grid grid-rows-2 gap-4">
-            <Card className="min-w-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  ARPU
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="min-w-0">
-                <div
-                  title={arpu != null ? formatCurrency(arpu) : "N/A"}
-                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-                >
-                  {arpu != null ? formatCurrency(arpu) : "N/A"}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  receita ÷ pedidos aprovados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="min-w-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  CPA médio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="min-w-0">
-                <div
-                  title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-                >
-                  {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  investimento ÷ pedidos aprovados
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardContent className="pt-6">
-              <SalesMap data={salesGeo} />
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="min-w-0">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              ARPU
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="min-w-0">
+            <div
+              title={arpu != null ? formatCurrency(arpu) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+            >
+              {arpu != null ? formatCurrency(arpu) : "N/A"}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              receita ÷ pedidos aprovados
+            </p>
+          </CardContent>
+        </Card>
       ),
     },
     {
-      id: "linha3",
-      title: "Vendas por produto / Taxa de aprovação / Vendas por pagamento",
+      id: "cpa",
+      title: "CPA médio",
       node: (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Vendas por produto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {sales.byProduct.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  Sem vendas no período.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {sales.byProduct.map((p, i) => {
-                    const pct =
-                      sales.total > 0 ? (p.count / sales.total) * 100 : 0;
-                    return (
-                      <li key={p.key} className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2 text-sm">
-                          <span className="min-w-0 truncate font-medium">
-                            {p.label}
-                          </span>
-                          <span
-                            className={cn(
-                              "shrink-0 font-mono tabular-nums",
-                              i === 0 ? "text-success" : "text-foreground",
-                            )}
-                          >
-                            {formatCurrency(p.revenue)}
-                          </span>
+        <Card className="min-w-0">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              CPA médio
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="min-w-0">
+            <div
+              title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+            >
+              {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              investimento ÷ pedidos aprovados
+            </p>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "spidercountry",
+      title: "SpiderCountry — mapa de vendas",
+      span: "lg",
+      node: (
+        <Card>
+          <CardContent className="pt-6">
+            <SalesMap data={salesGeo} />
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "vendas-produto",
+      title: "Vendas por produto",
+      span: "lg",
+      node: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Vendas por produto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sales.byProduct.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Sem vendas no período.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {sales.byProduct.map((p, i) => {
+                  const pct =
+                    sales.total > 0 ? (p.count / sales.total) * 100 : 0;
+                  return (
+                    <li key={p.key} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="min-w-0 truncate font-medium">
+                          {p.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 font-mono tabular-nums",
+                            i === 0 ? "text-success" : "text-foreground",
+                          )}
+                        >
+                          {formatCurrency(p.revenue)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="w-24 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                            {formatNumber(p.count)} · {pct.toFixed(1)}%
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Taxa de Aprovação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ApprovalPanel methods={approval} />
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle className="text-base">Vendas por pagamento</CardTitle>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <PaymentDonut data={sales.byPayment} total={sales.total} />
-            </CardContent>
-          </Card>
-        </div>
+                        <span className="w-24 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                          {formatNumber(p.count)} · {pct.toFixed(1)}%
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       ),
     },
     {
-      id: "linha4",
-      title: "Chargeback / Vendas pendentes / Vendas reembolsadas / Imposto Meta Ads",
+      id: "taxa-aprovacao",
+      title: "Taxa de Aprovação",
+      span: "lg",
       node: (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Chargeback"
-            value={formatPercent(chargeback.rate)}
-            hint={
-              chargeback.count > 0
-                ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
-                : "sem casos no período"
-            }
-            valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
-          />
-          <StatCard
-            label="Vendas pendentes"
-            value={formatCurrency(salesStatus.pendingValue)}
-            hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
-          />
-          <StatCard
-            label="Vendas reembolsadas"
-            value={formatPercent(refundRate)}
-            hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
-          />
-          <StatCard
-            label="Imposto Meta Ads"
-            value={formatCurrency(impostoMetaAds)}
-            hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
-          />
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Taxa de Aprovação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ApprovalPanel methods={approval} />
+          </CardContent>
+        </Card>
       ),
     },
     {
-      id: "linha5",
+      id: "vendas-pagamento",
+      title: "Vendas por pagamento",
+      span: "lg",
+      node: (
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle className="text-base">Vendas por pagamento</CardTitle>
+          </CardHeader>
+          <CardContent className="min-w-0">
+            <PaymentDonut data={sales.byPayment} total={sales.total} />
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "chargeback",
+      title: "Chargeback",
+      node: (
+        <StatCard
+          label="Chargeback"
+          value={formatPercent(chargeback.rate)}
+          hint={
+            chargeback.count > 0
+              ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
+              : "sem casos no período"
+          }
+          valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
+        />
+      ),
+    },
+    {
+      id: "vendas-pendentes",
+      title: "Vendas pendentes",
+      node: (
+        <StatCard
+          label="Vendas pendentes"
+          value={formatCurrency(salesStatus.pendingValue)}
+          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
+        />
+      ),
+    },
+    {
+      id: "vendas-reembolsadas",
+      title: "Vendas reembolsadas",
+      node: (
+        <StatCard
+          label="Vendas reembolsadas"
+          value={formatPercent(refundRate)}
+          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
+        />
+      ),
+    },
+    {
+      id: "imposto-meta",
+      title: "Imposto Meta Ads",
+      node: (
+        <StatCard
+          label="Imposto Meta Ads"
+          value={formatCurrency(impostoMetaAds)}
+          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
+        />
+      ),
+    },
+    {
+      id: "vendas-horario",
       title: "Vendas por Horário",
+      span: "full",
       node: (
         <Card>
           <CardHeader>
@@ -348,6 +419,7 @@ export default async function OverviewPage({
     {
       id: "receita",
       title: "Receita × investimento no período",
+      span: "full",
       node: (
         <Card>
           <CardHeader>
@@ -373,11 +445,14 @@ export default async function OverviewPage({
           {accounts.length > 1 ? (
             <AccountFilter current={accountParam} accounts={accounts} />
           ) : null}
+          {ofertaOptions.length > 0 ? (
+            <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
+          ) : null}
         </div>
         <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
       </div>
 
-      <DashboardCustomizer blocks={blocks} storageKey="spidertrack:dashboard-inicio:v1" />
+      <DashboardCustomizer blocks={blocks} storageKey="spidertrack:dashboard-inicio:v2" />
     </div>
   );
 }
