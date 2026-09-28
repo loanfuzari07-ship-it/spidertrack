@@ -466,38 +466,58 @@ export function CampaignsManager({
       {/* Rodapé de resumo — soma tudo que está na tabela acima (nível atual). */}
       {rows.length > 0 ? (
         <div className="grid gap-3 rounded-lg border border-border/70 bg-card/40 p-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <p className="text-xs text-muted-foreground">Orçamento total</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">
+              Orçamento total
+            </p>
+            <p
+              title={formatCurrency(totalBudget, currency)}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(0.95rem,0.75rem+0.8vw,1.125rem)] font-semibold tabular-nums"
+            >
               {formatCurrency(totalBudget, currency)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Valor gasto geral</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">
+              Valor gasto geral
+            </p>
+            <p
+              title={formatCurrency(totalSpend, currency)}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(0.95rem,0.75rem+0.8vw,1.125rem)] font-semibold tabular-nums"
+            >
               {formatCurrency(totalSpend, currency)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Faturamento geral</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">
+              Faturamento geral
+            </p>
+            <p
+              title={formatCurrency(totalRevenue, currency)}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(0.95rem,0.75rem+0.8vw,1.125rem)] font-semibold tabular-nums"
+            >
               {formatCurrency(totalRevenue, currency)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Lucro geral</p>
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">
+              Lucro geral
+            </p>
             <p
+              title={formatCurrency(totalLucro, currency)}
               className={cn(
-                "font-mono text-lg font-semibold tabular-nums",
+                "overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(0.95rem,0.75rem+0.8vw,1.125rem)] font-semibold tabular-nums",
                 totalLucro >= 0 ? "text-success" : "text-destructive",
               )}
             >
               {formatCurrency(totalLucro, currency)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">ROAS geral</p>
-            <p className="font-mono text-lg font-semibold tabular-nums">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-muted-foreground">
+              ROAS geral
+            </p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(0.95rem,0.75rem+0.8vw,1.125rem)] font-semibold tabular-nums">
               {totalSpend > 0 ? `${(totalRevenue / totalSpend).toFixed(2)}x` : "—"}
             </p>
           </div>

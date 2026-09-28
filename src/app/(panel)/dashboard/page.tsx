@@ -172,38 +172,43 @@ export default async function OverviewPage({
         </CardContent>
       </Card>
 
-      {/* Linha 2 — pendentes/reembolsadas + geolocalização (sobe) */}
+      {/* Linha 2 — ARPU/CPA médio + geolocalização (sobe) */}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="grid grid-rows-2 gap-4">
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Vendas pendentes
+                ARPU
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="font-mono text-3xl font-semibold tabular-nums">
-                {formatCurrency(salesStatus.pendingValue)}
+            <CardContent className="min-w-0">
+              <div
+                title={arpu != null ? formatCurrency(arpu) : "N/A"}
+                className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+              >
+                {arpu != null ? formatCurrency(arpu) : "N/A"}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatNumber(salesStatus.pending)} venda(s) aguardando
+                receita ÷ pedidos aprovados
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Vendas reembolsadas
+                CPA médio
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="font-mono text-3xl font-semibold tabular-nums">
-                {formatPercent(refundRate)}
+            <CardContent className="min-w-0">
+              <div
+                title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+                className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+              >
+                {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatNumber(salesStatus.refunded)} venda(s) ·{" "}
-                {formatCurrency(salesStatus.refundedValue)} devolvidos
+                investimento ÷ pedidos aprovados
               </p>
             </CardContent>
           </Card>
@@ -316,7 +321,7 @@ export default async function OverviewPage({
         </Card>
       </div>
 
-      {/* Linha 4 — chargeback, ARPU, CPA geral, imposto Meta Ads */}
+      {/* Linha 4 — chargeback, vendas pendentes, vendas reembolsadas, imposto Meta Ads */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Chargeback"
@@ -329,14 +334,14 @@ export default async function OverviewPage({
           valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
         />
         <StatCard
-          label="ARPU"
-          value={arpu != null ? formatCurrency(arpu) : "N/A"}
-          hint="receita ÷ pedidos aprovados"
+          label="Vendas pendentes"
+          value={formatCurrency(salesStatus.pendingValue)}
+          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
         />
         <StatCard
-          label="CPA médio"
-          value={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-          hint="investimento ÷ pedidos aprovados"
+          label="Vendas reembolsadas"
+          value={formatPercent(refundRate)}
+          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
         />
         <StatCard
           label="Imposto Meta Ads"
