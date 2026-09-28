@@ -1,18 +1,13 @@
 "use client";
 
-import { Activity, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BRAND_LOGO, BRAND_NAME, brandInitials } from "@/lib/branding";
 import { login } from "./actions";
 
 export function LoginForm() {
@@ -23,13 +18,24 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-sm" variant="glass">
       <CardHeader className="items-center text-center">
-        <div className="mb-1 flex size-10 items-center justify-center rounded-md bg-primary/15 text-primary">
-          <Activity className="size-6" />
-        </div>
-        <CardTitle className="text-xl">Entrar no painel</CardTitle>
-        <CardDescription>
-          Acesso restrito. Use suas credenciais de operador.
-        </CardDescription>
+        {BRAND_LOGO ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={BRAND_LOGO}
+            alt={BRAND_NAME}
+            className="mb-1 size-12 rounded-md object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="mb-1 flex size-12 items-center justify-center rounded-md bg-primary/15 font-mono text-sm font-semibold text-primary"
+          >
+            {brandInitials()}
+          </span>
+        )}
+        <span className="text-xl font-semibold tracking-tight">
+          {BRAND_NAME}
+        </span>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
