@@ -20,7 +20,7 @@ export interface DashboardBlock {
 const SPAN_CLASS: Record<DashboardItemSpan, string> = {
   sm: "",
   lg: "sm:col-span-2",
-  full: "sm:col-span-2 xl:col-span-4",
+  full: "sm:col-span-2 lg:col-span-4",
 };
 
 /**
@@ -135,7 +135,7 @@ export function DashboardCustomizer({
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-min grid-flow-row-dense grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {order.map((id) => {
           const block = byId.get(id);
           if (!block) return null;
