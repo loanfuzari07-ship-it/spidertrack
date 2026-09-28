@@ -14,6 +14,8 @@ export interface ProductRow {
   /** `null` = manda pra todos os pixels/propriedades ativas (padrão). */
   meta_pixel_id: string | null;
   ga4_measurement_id: string | null;
+  /** Grupo de oferta (aba Ofertas) — `null` = ainda não classificado. */
+  oferta: string | null;
 }
 
 const CAP = 5000;
@@ -46,12 +48,17 @@ export async function getProducts(
       .limit(CAP),
     db
       .from("product_settings")
-      .select("product_key, send_meta, meta_pixel_id, ga4_measurement_id"),
+      .select("product_key, send_meta, meta_pixel_id, ga4_measurement_id, oferta"),
   ]);
 
   const flag = new Map<
     string,
-    { send_meta: boolean; meta_pixel_id: string | null; ga4_measurement_id: string | null }
+    {
+      send_meta: boolean;
+      meta_pixel_id: string | null;
+      ga4_measurement_id: string | null;
+      oferta: string | null;
+    }
   >(
     (settings ?? []).map((s) => [
       s.product_key as string,
@@ -59,6 +66,7 @@ export async function getProducts(
         send_meta: s.send_meta as boolean,
         meta_pixel_id: (s.meta_pixel_id as string | null) ?? null,
         ga4_measurement_id: (s.ga4_measurement_id as string | null) ?? null,
+        oferta: (s.oferta as string | null) ?? null,
       },
     ]),
   );
@@ -86,6 +94,7 @@ export async function getProducts(
       send_meta: flag.get(key)?.send_meta ?? true, // default LIGADO
       meta_pixel_id: flag.get(key)?.meta_pixel_id ?? null,
       ga4_measurement_id: flag.get(key)?.ga4_measurement_id ?? null,
+      oferta: flag.get(key)?.oferta ?? null,
     }))
     .sort((a, b) => b.sales - a.sales);
 }

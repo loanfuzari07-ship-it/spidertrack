@@ -1,10 +1,17 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RANGE_OPTIONS, type RangeKey } from "@/lib/dashboard/range";
-import { cn } from "@/lib/utils";
 
-/** Período: Ontem / Hoje / 7 dias / Personalizado (com datas via ?from=&to=). */
+/** Período: um único campo (Ontem/Hoje/7 dias/30 dias/Este mês/Personalizado),
+ *  com datas via ?from=&to= quando "Personalizado" é escolhido. */
 export function PeriodSelector({ current }: { current: RangeKey }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -44,22 +51,18 @@ export function PeriodSelector({ current }: { current: RangeKey }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="scrollbar-none inline-flex shrink-0 gap-0.5 overflow-x-auto rounded-md border border-border/70 bg-card/40 p-0.5">
-        {RANGE_OPTIONS.map((o) => (
-          <button
-            key={o.key}
-            onClick={() => select(o.key)}
-            className={cn(
-              "shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium transition-colors",
-              current === o.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <Select value={current} onValueChange={(v) => select(v as RangeKey)}>
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {RANGE_OPTIONS.map((o) => (
+            <SelectItem key={o.key} value={o.key}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {current === "custom" ? (
         <div className="inline-flex items-center gap-1">

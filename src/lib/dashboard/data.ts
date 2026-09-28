@@ -68,6 +68,12 @@ export const getSalesByHour = (s: Source, r: DateRange) =>
 export const getLifetimeRevenue = (s: Source) =>
   s.db ? q.getLifetimeRevenue(s.db) : Promise.resolve(demo.lifetimeRevenue());
 
+export const getFinanceSettings = (s: Source) =>
+  s.db ? q.getFinanceSettings(s.db) : Promise.resolve(demo.financeSettings());
+
+export const getOfertaMaps = (s: Source, r: DateRange) =>
+  s.db ? q.getOfertaMaps(s.db, r) : Promise.resolve(demo.ofertaMaps(r));
+
 export const getPurchasesList = (
   s: Source,
   r: DateRange,
@@ -98,15 +104,20 @@ export const getEvents = (
 ) => (s.db ? q.getEvents(s.db, opts) : Promise.resolve(demo.events(opts.range, opts)));
 
 // ── Meta Ads ─────────────────────────────────────────────────────────────────
-export const getTotalSpend = (s: Source, r: DateRange) =>
-  s.admin ? spend.getTotalSpend(s.admin, r) : Promise.resolve(demo.totalSpend(r));
-
-export const getTotalClicks = (s: Source, r: DateRange) =>
-  s.admin ? spend.getTotalClicks(s.admin, r) : Promise.resolve(demo.totalClicks(r));
-
-export const getDailySpendMap = (s: Source, r: DateRange) =>
+// `accountId` filtra por uma conta de anúncio (undefined/"all" = todas).
+export const getTotalSpend = (s: Source, r: DateRange, accountId?: string) =>
   s.admin
-    ? spend.getDailySpendMap(s.admin, r)
+    ? spend.getTotalSpend(s.admin, r, accountId)
+    : Promise.resolve(demo.totalSpend(r));
+
+export const getTotalClicks = (s: Source, r: DateRange, accountId?: string) =>
+  s.admin
+    ? spend.getTotalClicks(s.admin, r, accountId)
+    : Promise.resolve(demo.totalClicks(r));
+
+export const getDailySpendMap = (s: Source, r: DateRange, accountId?: string) =>
+  s.admin
+    ? spend.getDailySpendMap(s.admin, r, accountId)
     : Promise.resolve(demo.dailySpendMap(r));
 
 export const getAdNameMap = (s: Source, r: DateRange) =>

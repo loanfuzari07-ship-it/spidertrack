@@ -6,6 +6,8 @@ import {
   ListChecks,
   Megaphone,
   Settings,
+  SlidersHorizontal,
+  Tag,
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -35,6 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Rastreamento",
     items: [
       { href: "/dashboard/campanhas", label: "Campanhas", icon: Megaphone },
+      { href: "/dashboard/ofertas", label: "Ofertas", icon: Tag },
       { href: "/dashboard/pixel-spider", label: "Pixel Spider", icon: Layers },
       { href: "/dashboard/utms", label: "UTMs", icon: Link2 },
       { href: "/dashboard/eventos", label: "Eventos", icon: ListChecks },
@@ -44,6 +47,11 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Sistema",
     items: [
       { href: "/dashboard/config", label: "Integrações", icon: Settings },
+      {
+        href: "/dashboard/configuracoes",
+        label: "Configurações",
+        icon: SlidersHorizontal,
+      },
       { href: "/dashboard/instrucoes", label: "Instruções", icon: BookOpen },
     ],
   },

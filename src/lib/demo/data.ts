@@ -9,9 +9,12 @@ import type {
   EventLogRow,
   EventTypeRow,
   Faturamento,
+  FinanceSettings,
   FunnelCounts,
   GeoBreakdown,
   JourneyEvent,
+  OfertaAgg,
+  OfertaMaps,
   Overview,
   PageRow,
   PurchaseRow,
@@ -548,6 +551,11 @@ export function salesByHour(range: DateRange): SalesByHour[] {
   return buckets;
 }
 
+/** Taxas fictícias no modo demonstração — mesmos padrões da tela real. */
+export function financeSettings(): FinanceSettings {
+  return { metaAdsTaxRate: 0.135, platformFeeRate: 0 };
+}
+
 /** Faturamento vitalício fictício — janela sintética larga (não é um período
  *  navegável, só alimenta o placar de metas da lateral). */
 export function lifetimeRevenue(): number {
@@ -951,6 +959,49 @@ export function campaigns(range: DateRange): DemoCampaigns {
   };
 }
 
+/** Mesma regra usada em `config()`: os 2 primeiros produtos são "Oferta 1", o
+ *  resto "Oferta 2" — só para a vitrine ter algo pra mostrar na aba Ofertas. */
+function demoOfertaOf(productName: string): string | null {
+  const i = PRODUCTS.findIndex((p) => p.name === productName);
+  if (i < 0) return null;
+  return i < 2 ? "Oferta 1" : "Oferta 2";
+}
+
+export function ofertaMaps(range: DateRange): OfertaMaps {
+  const s = demoSet(range);
+  const revenue = new Map<string, OfertaAgg>();
+  const campaignVotes = new Map<string, Map<string, number>>();
+
+  for (const p of s.paid) {
+    const oferta = demoOfertaOf(p.product);
+    if (!oferta) continue;
+    const cur = revenue.get(oferta) ?? { oferta, revenue: 0, orders: 0 };
+    cur.revenue += p.value;
+    cur.orders += 1;
+    revenue.set(oferta, cur);
+
+    const ck = p.campaign.id.toLowerCase();
+    const votes = campaignVotes.get(ck) ?? new Map<string, number>();
+    votes.set(oferta, (votes.get(oferta) ?? 0) + 1);
+    campaignVotes.set(ck, votes);
+  }
+
+  const campaignOferta = new Map<string, string>();
+  for (const [ck, votes] of campaignVotes) {
+    let best: string | null = null;
+    let bestCount = -1;
+    for (const [oferta, count] of votes) {
+      if (count > bestCount) {
+        best = oferta;
+        bestCount = count;
+      }
+    }
+    if (best) campaignOferta.set(ck, best);
+  }
+
+  return { revenue, campaignOferta };
+}
+
 // ── Configurações (contas de exemplo, sem segredo nenhum) ────────────────────
 export interface DemoConfig {
   settings: {
@@ -993,6 +1044,7 @@ export function config(): DemoConfig {
       send_meta: p.name.includes("Upsell") ? false : true,
       meta_pixel_id: null,
       ga4_measurement_id: null,
+      oferta: i < 2 ? "Oferta 1" : "Oferta 2",
     })),
   };
 }

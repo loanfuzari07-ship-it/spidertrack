@@ -1,12 +1,14 @@
 "use client";
 
 import { Package } from "lucide-react";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   setProductDestination,
+  setProductOferta,
   toggleProductMeta,
 } from "@/app/(panel)/dashboard/config/actions";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -36,6 +38,38 @@ function MetaToggle({ product }: { product: ProductRow }) {
           }
         })
       }
+    />
+  );
+}
+
+/** Campo livre "grupo de oferta" — salva ao sair do campo (blur), só se mudou. */
+function OfertaInput({ product }: { product: ProductRow }) {
+  const [value, setValue] = useState(product.oferta ?? "");
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    const clean = value.trim();
+    if (clean === (product.oferta ?? "")) return;
+    startTransition(async () => {
+      try {
+        await setProductOferta(product.key, product.name, clean || null);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Falha ao atualizar.");
+      }
+    });
+  }
+
+  return (
+    <Input
+      value={value}
+      disabled={pending}
+      placeholder="Ex.: Oferta 1"
+      className="h-8 w-[160px] text-xs"
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
     />
   );
 }
@@ -115,10 +149,12 @@ export function ProductsSection({
       <div className="space-y-1">
         <h2 className="font-semibold">Produtos</h2>
         <p className="text-sm text-muted-foreground">
-          Produtos que já geraram venda. Desligue o envio ao Meta para os que não
-          quer marcar no Gerenciador (ex.: upsells). Se você tem mais de um
-          Pixel/propriedade GA4 (um por produto, por exemplo), escolha aqui
-          qual cada produto usa — sem escolher, manda pra todos os ativos.
+          Produtos que já geraram venda. Marque a Oferta de cada produto (ex.:
+          &quot;Oferta 1&quot;) para agrupar campanhas e resultados na aba Ofertas.
+          Desligue o envio ao Meta para os que não quer marcar no Gerenciador
+          (ex.: upsells). Se você tem mais de um Pixel/propriedade GA4 (um por
+          produto, por exemplo), escolha aqui qual cada produto usa — sem
+          escolher, manda pra todos os ativos.
         </p>
       </div>
 
@@ -143,11 +179,17 @@ export function ProductsSection({
                     {formatNumber(p.sales)} vendas · {formatCurrency(p.revenue)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Enviar ao Meta
-                  </span>
-                  <MetaToggle product={p} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Oferta</p>
+                    <OfertaInput product={p} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Enviar ao Meta
+                    </span>
+                    <MetaToggle product={p} />
+                  </div>
                 </div>
               </div>
 

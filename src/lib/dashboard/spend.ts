@@ -29,16 +29,27 @@ export function rangeToSinceUntil(range: DateRange): {
   return { since, until };
 }
 
+/** Filtra a lista de contas ativas por id, quando um filtro foi passado
+ *  (undefined ou "all" = todas — mesma convenção do filtro de Campanhas). */
+function filterAccounts<T extends { id: string }>(
+  accounts: T[],
+  accountId?: string,
+): T[] {
+  if (!accountId || accountId === "all") return accounts;
+  return accounts.filter((a) => a.id === accountId);
+}
+
 /**
- * Gasto total do Meta Ads no período (soma de todas as contas ativas). Usa o
- * cache do getInsights (~30 min). `ok=false` se alguma conta falhar — o gasto
- * retorna o que deu certo.
+ * Gasto total do Meta Ads no período (soma das contas ativas — ou só uma,
+ * quando `accountId` é informado). Usa o cache do getInsights (~30 min).
+ * `ok=false` se alguma conta falhar — o gasto retorna o que deu certo.
  */
 export async function getTotalSpend(
   admin: SupabaseClient,
   range: DateRange,
+  accountId?: string,
 ): Promise<{ spend: number; ok: boolean; fetchedAt: number | null }> {
-  const accounts = await listAdAccounts(admin);
+  const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   if (accounts.length === 0) return { spend: 0, ok: true, fetchedAt: null };
 
   const { since, until } = rangeToSinceUntil(range);
@@ -65,8 +76,9 @@ export async function getTotalSpend(
 export async function getTotalClicks(
   admin: SupabaseClient,
   range: DateRange,
+  accountId?: string,
 ): Promise<{ clicks: number; ok: boolean }> {
-  const accounts = await listAdAccounts(admin);
+  const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   if (accounts.length === 0) return { clicks: 0, ok: true };
 
   const { since, until } = rangeToSinceUntil(range);
@@ -113,8 +125,9 @@ export async function getAdNameMap(
 export async function getDailySpendMap(
   admin: SupabaseClient,
   range: DateRange,
+  accountId?: string,
 ): Promise<Map<string, number>> {
-  const accounts = await listAdAccounts(admin);
+  const accounts = filterAccounts(await listAdAccounts(admin), accountId);
   const map = new Map<string, number>();
   if (accounts.length === 0) return map;
 

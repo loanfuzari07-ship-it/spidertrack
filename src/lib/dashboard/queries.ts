@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cache } from "react";
 import type { DateRange } from "@/lib/dashboard/range";
+import { productKey } from "@/lib/products";
 
 // Agregações do painel. Rodam em Server Components com o cliente AUTENTICADO
 // (RLS aplica). Volumes moderados → agregação em JS sobre faixas limitadas.
@@ -777,6 +778,82 @@ export async function getRevenueUtmMaps(
   return maps;
 }
 
+// ── Ofertas ──────────────────────────────────────────────────────────────────
+export interface OfertaAgg {
+  oferta: string;
+  revenue: number;
+  orders: number;
+}
+export interface OfertaMaps {
+  /** Faturamento/pedidos por oferta (a partir de `product_settings.oferta`). */
+  revenue: Map<string, OfertaAgg>;
+  /**
+   * Campanha (chave = utm_campaign normalizado, minúsculo) → oferta dominante.
+   * Premissa confirmada pelo usuário: cada oferta roda em campanha(s) própria(s)
+   * (mesmo quando dividem a mesma conta de anúncio), então a campanha de uma
+   * compra é atribuída à oferta do produto comprado.
+   */
+  campaignOferta: Map<string, string>;
+}
+
+/**
+ * Agrega faturamento por Oferta (grupo definido em Configurações → Produtos) e
+ * monta o mapa campanha → oferta (pela campanha que gerou cada venda), para o
+ * gasto do Meta Ads poder ser somado por oferta na aba Ofertas.
+ */
+export async function getOfertaMaps(db: DB, range: DateRange): Promise<OfertaMaps> {
+  const [data, { data: settings }] = await Promise.all([
+    loadPurchases(db, range),
+    db.from("product_settings").select("product_key, oferta"),
+  ]);
+
+  const productOferta = new Map<string, string>();
+  for (const s of settings ?? []) {
+    const oferta = (s.oferta as string | null)?.trim();
+    if (oferta) productOferta.set(s.product_key as string, oferta);
+  }
+
+  const revenue = new Map<string, OfertaAgg>();
+  // Contagem de vendas por (campanha, oferta) — usada só para achar a oferta
+  // dominante de cada campanha; não é exposta.
+  const campaignVotes = new Map<string, Map<string, number>>();
+
+  for (const p of data) {
+    if (isRefund(p.status) || isFailedStatus(p.status) || p.value == null) continue;
+    const key = productKey(p.product_id, p.product_name);
+    if (!key) continue;
+    const oferta = productOferta.get(key);
+    if (!oferta) continue;
+
+    const cur = revenue.get(oferta) ?? { oferta, revenue: 0, orders: 0 };
+    cur.revenue += Number(p.value);
+    cur.orders += 1;
+    revenue.set(oferta, cur);
+
+    const mk = utmMatchKey(p.utm_campaign);
+    if (!mk) continue;
+    const ck = mk.toLowerCase();
+    const votes = campaignVotes.get(ck) ?? new Map<string, number>();
+    votes.set(oferta, (votes.get(oferta) ?? 0) + 1);
+    campaignVotes.set(ck, votes);
+  }
+
+  const campaignOferta = new Map<string, string>();
+  for (const [ck, votes] of campaignVotes) {
+    let best: string | null = null;
+    let bestCount = -1;
+    for (const [oferta, count] of votes) {
+      if (count > bestCount) {
+        best = oferta;
+        bestCount = count;
+      }
+    }
+    if (best) campaignOferta.set(ck, best);
+  }
+
+  return { revenue, campaignOferta };
+}
+
 export interface JourneyEvent {
   id: string;
   created_at: string;
@@ -1057,6 +1134,37 @@ export async function getSalesByHour(
     buckets[h].revenue += Number(p.value ?? 0);
   }
   return buckets;
+}
+
+// ── Taxas financeiras (Configurações) ───────────────────────────────────────
+
+export interface FinanceSettings {
+  /** Fração (0.135 = 13,5%) aplicada sobre o investimento em anúncios. */
+  metaAdsTaxRate: number;
+  /** Fração (0.099 = 9,9%) descontada da receita pela plataforma de pagamento. */
+  platformFeeRate: number;
+}
+
+const DEFAULT_META_ADS_TAX_RATE = 0.135;
+const DEFAULT_PLATFORM_FEE_RATE = 0;
+
+/** Taxas configuráveis em Configurações — linha única (id=1) de `settings`. */
+export async function getFinanceSettings(db: DB): Promise<FinanceSettings> {
+  const { data } = await db
+    .from("settings")
+    .select("meta_ads_tax_rate_pct, platform_fee_rate_pct")
+    .eq("id", 1)
+    .maybeSingle();
+  const metaPct = data?.meta_ads_tax_rate_pct;
+  const platformPct = data?.platform_fee_rate_pct;
+  return {
+    metaAdsTaxRate:
+      typeof metaPct === "number" ? metaPct / 100 : DEFAULT_META_ADS_TAX_RATE,
+    platformFeeRate:
+      typeof platformPct === "number"
+        ? platformPct / 100
+        : DEFAULT_PLATFORM_FEE_RATE,
+  };
 }
 
 // ── Faturamento vitalício (sidebar — placar de metas) ───────────────────────

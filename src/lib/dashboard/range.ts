@@ -1,6 +1,12 @@
 // Intervalo de datas do painel (via ?range= + ?from=&to= no personalizado).
 
-export type RangeKey = "yesterday" | "today" | "7d" | "30d" | "custom";
+export type RangeKey =
+  | "yesterday"
+  | "today"
+  | "7d"
+  | "30d"
+  | "month"
+  | "custom";
 
 export interface DateRange {
   key: RangeKey;
@@ -14,6 +20,7 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: "today", label: "Hoje" },
   { key: "7d", label: "7 dias" },
   { key: "30d", label: "30 dias" },
+  { key: "month", label: "Este mês" },
   { key: "custom", label: "Personalizado" },
 ];
 
@@ -51,11 +58,13 @@ export function parseRange(
   fromParam?: string,
   toParam?: string,
 ): DateRange {
-  const key = (["yesterday", "today", "7d", "30d", "custom"].includes(
-    value ?? "",
-  )
-    ? value
-    : "today") as RangeKey;
+  const key = (
+    ["yesterday", "today", "7d", "30d", "month", "custom"].includes(
+      value ?? "",
+    )
+      ? value
+      : "today"
+  ) as RangeKey;
   const now = new Date();
   const to = now.toISOString();
   const startOfToday = startOfSpDay(spDay(now));
@@ -80,6 +89,12 @@ export function parseRange(
   if (key === "30d") {
     const from = new Date(now.getTime() - 30 * 86400_000).toISOString();
     return { key, from, to, label };
+  }
+  if (key === "month") {
+    // Do dia 1 (00:00, fuso SP) até agora.
+    const ymd = spDay(now);
+    const firstOfMonth = `${ymd.slice(0, 7)}-01`;
+    return { key, from: startOfSpDay(firstOfMonth).toISOString(), to, label };
   }
 
   // Personalizado: from/to (YYYY-MM-DD, dias de SP). `to` é exclusivo → início

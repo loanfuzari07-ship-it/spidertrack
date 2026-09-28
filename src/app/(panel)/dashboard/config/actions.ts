@@ -99,6 +99,27 @@ export async function setProductDestination(
   revalidatePath(CONFIG_PATH);
 }
 
+/** Define o grupo de oferta de um produto (aba Ofertas). `null`/"" = remove a marcação. */
+export async function setProductOferta(
+  productKey: string,
+  productName: string | null,
+  value: string | null,
+) {
+  await requireUser();
+  const admin = createAdminClient();
+  const clean = value?.trim() || null;
+  const { error } = await admin.from("product_settings").upsert(
+    {
+      product_key: productKey,
+      product_name: productName,
+      oferta: clean,
+    },
+    { onConflict: "product_key" },
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath(CONFIG_PATH);
+}
+
 /** Cifra um segredo via RPC (só service_role executa). */
 export async function encrypt(admin: ReturnType<typeof createAdminClient>, plaintext: string) {
   const { data, error } = await admin.rpc("encrypt_secret", { plaintext });

@@ -3,6 +3,7 @@
 import { Info, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { countryName, flagEmoji } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export interface SalesMarker {
   key: string; // código do país (ex.: "BR")
@@ -32,7 +33,6 @@ export function SalesGeoCard({
   total: number;
   noCountry: number;
 }) {
-  const [view, setView] = useState<"map" | "ranking">("map");
   const [sel, setSel] = useState<string | null>(null);
   const selected = markers.find((m) => m.key === sel) ?? null;
   const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
@@ -40,28 +40,11 @@ export function SalesGeoCard({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold">
-          Spider<span className="text-primary">Country</span>
-        </h3>
-        <div className="inline-flex rounded-md border border-border/60 p-0.5 text-xs">
-          {(["ranking", "map"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`rounded px-2.5 py-1 font-medium transition ${
-                view === v
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {v === "ranking" ? "Ranking" : "Mapa"}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h3 className="text-base font-semibold">
+        Spider<span className="text-primary">Country</span>
+      </h3>
 
-      {view === "map" ? (
+      <div className="space-y-3">
         <div className="relative overflow-hidden rounded-lg">
           {children}
 
@@ -142,7 +125,8 @@ export function SalesGeoCard({
             Clique nos marcadores para ver as métricas
           </div>
         </div>
-      ) : (
+
+        {/* ranking dos países, logo abaixo do mapa */}
         <ul className="divide-y divide-border/50 rounded-lg border border-border/60">
           {ranked.length === 0 ? (
             <li className="p-6 text-center text-sm text-muted-foreground">
@@ -150,7 +134,14 @@ export function SalesGeoCard({
             </li>
           ) : (
             ranked.map((m, i) => (
-              <li key={m.key} className="flex items-center gap-3 px-3 py-2">
+              <li
+                key={m.key}
+                onClick={() => setSel(m.key === sel ? null : m.key)}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 px-3 py-2 transition hover:bg-muted/40",
+                  m.key === sel ? "bg-primary/10" : undefined,
+                )}
+              >
                 <span className="w-5 text-center font-mono text-xs tabular-nums text-muted-foreground">
                   {i + 1}
                 </span>
@@ -180,7 +171,7 @@ export function SalesGeoCard({
             </li>
           ) : null}
         </ul>
-      )}
+      </div>
     </div>
   );
 }
