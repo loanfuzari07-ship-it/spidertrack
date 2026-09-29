@@ -13,8 +13,19 @@ export interface DashboardBlock {
   node: ReactNode;
   /** Largura do item na grade. "sm" (padrão) = 1 coluna — cartões de número.
    *  "lg" = metade da largura no desktop — cartões de conteúdo (listas,
-   *  mapa, funil). "full" = a tela inteira — gráficos de série temporal. */
+   *  mapa). "full" = a tela inteira — funil e gráficos de série temporal. */
   span?: DashboardItemSpan;
+}
+
+/**
+ * Um grupo de blocos com a MESMA "forma" (todo mundo cartão de número, ou
+ * todo mundo cartão de conteúdo) — arrastar dentro de um grupo NUNCA deixa
+ * buraco, porque o grupo é dimensionado pra fechar sozinho. Cada tela define
+ * seus grupos (normalmente: "números" em cima, "conteúdo" embaixo).
+ */
+export interface DashboardSection {
+  id: string;
+  blocks: DashboardBlock[];
 }
 
 // Classes SEM prefixo de breakpoint (aplicam já no mobile, onde a grade
@@ -26,40 +37,62 @@ const SPAN_CLASS: Record<DashboardItemSpan, string> = {
   full: "col-span-2 lg:col-span-4",
 };
 
+function defaultOrders(sections: DashboardSection[]): Record<string, string[]> {
+  return Object.fromEntries(
+    sections.map((s) => [s.id, s.blocks.map((b) => b.id)]),
+  );
+}
+
 /**
- * Envolve os blocos de uma tela e permite reordená-los arrastando (modo
- * "Personalizar"). A ordem é salva só no navegador (localStorage) — é uma
- * preferência de exibição, não dado do negócio.
+ * Envolve as seções de uma tela e permite reordenar os itens DENTRO de cada
+ * uma arrastando (modo "Personalizar"). A ordem é salva só no navegador
+ * (localStorage) — é uma preferência de exibição, não dado do negócio.
  */
 export function DashboardCustomizer({
-  blocks,
+  sections,
   storageKey,
 }: {
-  blocks: DashboardBlock[];
+  sections: DashboardSection[];
   storageKey: string;
 }) {
-  const defaultOrder = blocks.map((b) => b.id);
-  const [order, setOrder] = useState<string[]>(defaultOrder);
+  const [orders, setOrders] = useState<Record<string, string[]>>(() =>
+    defaultOrders(sections),
+  );
   const [editing, setEditing] = useState(false);
-  const dragId = useRef<string | null>(null);
+  const dragRef = useRef<{ section: string; id: string } | null>(null);
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
       const saved = JSON.parse(raw) as unknown;
-      // Só aplica se a ordem salva tiver exatamente o mesmo conjunto de blocos
-      // de hoje — evita ordem "quebrada" depois que a tela ganha/perde um bloco.
-      if (
-        Array.isArray(saved) &&
-        saved.length === defaultOrder.length &&
-        defaultOrder.every((id) => saved.includes(id))
-      ) {
-        // A ordem só existe no localStorage do navegador (não dá pra saber no
-        // servidor) — sincronizar depois de montar é a forma correta aqui,
-        // mesmo que a regra normalmente desencoraje setState em efeito.
+      if (!saved || typeof saved !== "object") return;
+      const savedMap = saved as Record<string, unknown>;
+      const next: Record<string, string[]> = {};
+      let anyValid = false;
+      for (const section of sections) {
+        const def = section.blocks.map((b) => b.id);
+        const candidate = savedMap[section.id];
+        // Só aplica se a ordem salva tiver exatamente o mesmo conjunto de
+        // blocos de hoje — evita ordem "quebrada" depois que a tela ganha/
+        // perde um bloco.
+        if (
+          Array.isArray(candidate) &&
+          candidate.length === def.length &&
+          def.every((id) => candidate.includes(id))
+        ) {
+          next[section.id] = candidate as string[];
+          anyValid = true;
+        } else {
+          next[section.id] = def;
+        }
+      }
+      if (anyValid) {
+        // A ordem só existe no localStorage do navegador (não dá pra saber
+        // no servidor) — sincronizar depois de montar é a forma correta
+        // aqui, mesmo que a regra normalmente desencoraje setState em efeito.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setOrder(saved as string[]);
+        setOrders(next);
       }
     } catch {
       // localStorage indisponível (aba anônima etc.) — segue com a ordem padrão.
@@ -67,8 +100,8 @@ export function DashboardCustomizer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  function persist(next: string[]) {
-    setOrder(next);
+  function persist(next: Record<string, string[]>) {
+    setOrders(next);
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
@@ -76,23 +109,22 @@ export function DashboardCustomizer({
     }
   }
 
-  function moveTo(targetId: string) {
-    const from = dragId.current;
-    dragId.current = null;
-    if (!from || from === targetId) return;
-    const next = [...order];
-    const fromIdx = next.indexOf(from);
-    const toIdx = next.indexOf(targetId);
+  function moveTo(sectionId: string, targetId: string) {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag || drag.section !== sectionId || drag.id === targetId) return;
+    const order = orders[sectionId] ?? [];
+    const fromIdx = order.indexOf(drag.id);
+    const toIdx = order.indexOf(targetId);
     if (fromIdx === -1 || toIdx === -1) return;
-    next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, from);
-    persist(next);
+    const nextOrder = [...order];
+    nextOrder.splice(fromIdx, 1);
+    nextOrder.splice(toIdx, 0, drag.id);
+    persist({ ...orders, [sectionId]: nextOrder });
   }
 
-  const byId = new Map(blocks.map((b) => [b.id, b]));
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-end gap-2">
         {editing ? (
           <>
@@ -100,7 +132,7 @@ export function DashboardCustomizer({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => persist(defaultOrder)}
+              onClick={() => persist(defaultOrders(sections))}
               className="gap-1.5 text-muted-foreground"
             >
               <RotateCcw className="size-3.5" />
@@ -138,47 +170,53 @@ export function DashboardCustomizer({
         </p>
       ) : null}
 
-      {/* 2 colunas já no celular (cartões de número lado a lado, sem vão) e 4
-          no desktop — "grid-flow-row-dense" preenche buracos, mas só funciona
-          bem se cada linha "fechar" certinho (ver spans dos blocos na page). */}
-      <div className="grid auto-rows-min grid-flow-row-dense grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {order.map((id) => {
-          const block = byId.get(id);
-          if (!block) return null;
-          const span = block.span ?? "sm";
-          return (
-            <div
-              key={id}
-              draggable={editing}
-              onDragStart={(e) => {
-                dragId.current = id;
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(e) => {
-                if (editing) e.preventDefault();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                moveTo(id);
-              }}
-              className={cn(
-                "min-w-0 rounded-lg transition",
-                SPAN_CLASS[span],
-                editing &&
-                  "cursor-grab ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
-              )}
-            >
-              {editing ? (
-                <div className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
-                  <GripVertical className="size-3.5 shrink-0" />
-                  <span className="truncate">{block.title}</span>
+      {sections.map((section) => {
+        const byId = new Map(section.blocks.map((b) => [b.id, b]));
+        const order = orders[section.id] ?? section.blocks.map((b) => b.id);
+        return (
+          <div
+            key={section.id}
+            className="grid auto-rows-min grid-flow-row-dense grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
+          >
+            {order.map((id) => {
+              const block = byId.get(id);
+              if (!block) return null;
+              const span = block.span ?? "sm";
+              return (
+                <div
+                  key={id}
+                  draggable={editing}
+                  onDragStart={(e) => {
+                    dragRef.current = { section: section.id, id };
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    if (editing) e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    moveTo(section.id, id);
+                  }}
+                  className={cn(
+                    "min-w-0 rounded-lg transition",
+                    SPAN_CLASS[span],
+                    editing &&
+                      "cursor-grab ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
+                  )}
+                >
+                  {editing ? (
+                    <div className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
+                      <GripVertical className="size-3.5 shrink-0" />
+                      <span className="truncate">{block.title}</span>
+                    </div>
+                  ) : null}
+                  {block.node}
                 </div>
-              ) : null}
-              {block.node}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }

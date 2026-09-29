@@ -11,6 +11,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import {
   DashboardCustomizer,
   type DashboardBlock,
+  type DashboardSection,
 } from "@/components/panel/dashboard-customizer";
 import { refreshOverview } from "./actions";
 import {
@@ -134,7 +135,12 @@ export default async function OverviewPage({
   const refundBase = overview.purchases + salesStatus.refunded;
   const refundRate = refundBase > 0 ? salesStatus.refunded / refundBase : 0;
 
-  const blocks: DashboardBlock[] = [
+  // Duas grades separadas: "kpiBlocks" (cartões de número, todos do mesmo
+  // tamanho — arrastar em qualquer ordem/quantidade nunca deixa buraco) e
+  // "contentBlocks" (funil, mapa, listas e gráficos, maiores). Misturar os
+  // dois tamanhos numa única grade "inteligente" foi o que causava os vãos
+  // em branco reportados — grades de tamanho uniforme não têm esse problema.
+  const kpiBlocks: DashboardBlock[] = [
     {
       id: "faturamento",
       title: "Faturamento total",
@@ -186,29 +192,6 @@ export default async function OverviewPage({
       ),
     },
     {
-      id: "spiderflow",
-      title: "SpiderFlow — funil de conversão",
-      span: "full",
-      node: (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Spider<span className="text-primary">Flow</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Funnel
-              clicks={clicks.clicks}
-              pageviews={funnel.pageviews}
-              ics={funnel.ics}
-              salesInit={funnel.salesInit}
-              salesApproved={funnel.salesApproved}
-            />
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
       id: "arpu",
       title: "ARPU",
       node: (
@@ -252,6 +235,85 @@ export default async function OverviewPage({
             <p className="mt-1 text-xs text-muted-foreground">
               investimento ÷ pedidos aprovados
             </p>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "chargeback",
+      title: "Chargeback",
+      node: (
+        <StatCard
+          label="Chargeback"
+          value={formatPercent(chargeback.rate)}
+          hint={
+            chargeback.count > 0
+              ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
+              : "sem casos no período"
+          }
+          valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
+        />
+      ),
+    },
+    {
+      id: "vendas-pendentes",
+      title: "Vendas pendentes",
+      node: (
+        <StatCard
+          label="Vendas pendentes"
+          value={formatCurrency(salesStatus.pendingValue)}
+          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
+        />
+      ),
+    },
+    {
+      id: "vendas-reembolsadas",
+      title: "Vendas reembolsadas",
+      node: (
+        <StatCard
+          label="Vendas reembolsadas"
+          value={formatPercent(refundRate)}
+          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
+        />
+      ),
+    },
+    {
+      id: "imposto-meta",
+      title: "Imposto Meta Ads",
+      node: (
+        <StatCard
+          label="Imposto Meta Ads"
+          value={formatCurrency(impostoMetaAds)}
+          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
+        />
+      ),
+    },
+  ];
+
+  // Cartões maiores (funil, mapa, listas, gráficos). Os 4 "lg" ficam juntos
+  // de propósito — assim eles sempre formam pares de linha completa (2+2),
+  // e os "full" abrem/fecham sozinhos sua própria linha. Nada de vão em
+  // branco, em qualquer ordem que o usuário arrastar DENTRO deste grupo.
+  const contentBlocks: DashboardBlock[] = [
+    {
+      id: "spiderflow",
+      title: "SpiderFlow — funil de conversão",
+      span: "full",
+      node: (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Spider<span className="text-primary">Flow</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Funnel
+              clicks={clicks.clicks}
+              pageviews={funnel.pageviews}
+              ics={funnel.ics}
+              salesInit={funnel.salesInit}
+              salesApproved={funnel.salesApproved}
+            />
           </CardContent>
         </Card>
       ),
@@ -353,57 +415,6 @@ export default async function OverviewPage({
       ),
     },
     {
-      id: "chargeback",
-      title: "Chargeback",
-      node: (
-        <StatCard
-          label="Chargeback"
-          value={formatPercent(chargeback.rate)}
-          hint={
-            chargeback.count > 0
-              ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
-              : "sem casos no período"
-          }
-          valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
-        />
-      ),
-    },
-    {
-      id: "vendas-pendentes",
-      title: "Vendas pendentes",
-      node: (
-        <StatCard
-          label="Vendas pendentes"
-          value={formatCurrency(salesStatus.pendingValue)}
-          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
-        />
-      ),
-    },
-    {
-      id: "vendas-reembolsadas",
-      title: "Vendas reembolsadas",
-      span: "lg",
-      node: (
-        <StatCard
-          label="Vendas reembolsadas"
-          value={formatPercent(refundRate)}
-          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
-        />
-      ),
-    },
-    {
-      id: "imposto-meta",
-      title: "Imposto Meta Ads",
-      span: "lg",
-      node: (
-        <StatCard
-          label="Imposto Meta Ads"
-          value={formatCurrency(impostoMetaAds)}
-          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
-        />
-      ),
-    },
-    {
       id: "vendas-horario",
       title: "Vendas por Horário",
       span: "full",
@@ -437,6 +448,11 @@ export default async function OverviewPage({
     },
   ];
 
+  const sections: DashboardSection[] = [
+    { id: "kpis", blocks: kpiBlocks },
+    { id: "content", blocks: contentBlocks },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader title="Visão geral" />
@@ -450,7 +466,10 @@ export default async function OverviewPage({
         <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
       </div>
 
-      <DashboardCustomizer blocks={blocks} storageKey="spidertrack:dashboard-inicio:v2" />
+      <DashboardCustomizer
+        sections={sections}
+        storageKey="spidertrack:dashboard-inicio:v3"
+      />
     </div>
   );
 }
