@@ -400,12 +400,18 @@ export function DashboardCustomizer({
                       <span className="truncate">{block.title}</span>
                     </div>
                   ) : null}
-                  {/* "min-h-0 [&>*]:h-full" faz o card (filho único aqui)
-                      esticar até a altura da célula da grade — sem isso,
-                      quando um vizinho na mesma linha é mais alto (ex.: funil
-                      ao lado de ARPU/CPA), o card curto fica "flutuando" no
-                      topo e sobra um vão em branco visível por baixo dele. */}
-                  <div className="min-h-0 flex-1 [&>*]:h-full">
+                  {/* "min-h-0 [&>*]:min-h-full" faz o card (filho único
+                      aqui) esticar até a altura da célula da grade — sem
+                      isso, quando um vizinho na mesma linha é mais alto
+                      (ex.: funil ao lado de ARPU/CPA), o card curto fica
+                      "flutuando" no topo e sobra um vão em branco visível
+                      por baixo dele. É "min-h-full" (piso), não "h-full"
+                      (força): um card com ALTURA PRÓPRIA fixa (como o
+                      SpiderFlow, que precisa de altura concreta pro SVG do
+                      funil não colapsar a 0px) tem que poder ficar MAIOR que
+                      a célula sem ser espremido de volta — "h-full" o
+                      obrigava a 100% da célula, esmagando o funil. */}
+                  <div className="min-h-0 flex-1 [&>*]:min-h-full">
                     {block.node}
                   </div>
                 </div>

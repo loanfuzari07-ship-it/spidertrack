@@ -335,7 +335,7 @@ export default async function OverviewPage({
         <StatCard
           label="Imposto Meta Ads"
           value={formatCurrency(impostoMetaAds)}
-          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
+          info={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento.`}
         />
       ),
     },
