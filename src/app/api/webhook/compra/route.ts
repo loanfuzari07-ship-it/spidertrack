@@ -96,11 +96,30 @@ export async function POST(req: Request) {
   }
 
   // ── corpo ──
+  // Hotmart/Kiwify/DigitalGoat mandam JSON; a Digistore24 manda os campos
+  // como POST tradicional (application/x-www-form-urlencoded). Decide pelo
+  // Content-Type e, se ele vier ausente/errado, tenta JSON e cai pra
+  // form-encoded — assim nenhuma plataforma nova quebra por causa disso.
+  const contentType = req.headers.get("content-type") ?? "";
   let raw: unknown;
   try {
-    raw = await req.json();
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      raw = Object.fromEntries(new URLSearchParams(await req.text()));
+    } else if (contentType.includes("application/json")) {
+      raw = await req.json();
+    } else {
+      const text = await req.text();
+      try {
+        raw = JSON.parse(text);
+      } catch {
+        raw = Object.fromEntries(new URLSearchParams(text));
+      }
+    }
   } catch {
-    return jsonResponse({ error: "invalid_json" }, 400);
+    return jsonResponse({ error: "invalid_body" }, 400);
+  }
+  if (!raw || typeof raw !== "object") {
+    return jsonResponse({ error: "invalid_body" }, 400);
   }
 
   const norm = normalizePurchase(raw);

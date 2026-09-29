@@ -266,8 +266,17 @@
       // "trck" custom é descartado. Então colamos o id também no `sck` (campo
       // livre; volta como purchase.tracking.source_sck) pra casar a compra com
       // o visitante por ID. NÃO tocamos no `src` (atribuição de anúncio dele).
-      if (hostIn(u.host, PAYMENT_HOSTS) && !u.searchParams.get("sck")) {
+      if (hostIn(u.host, HOTMART_HOSTS) && !u.searchParams.get("sck")) {
         u.searchParams.set("sck", trckId);
+      }
+      // Digistore24 só devolve no IPN o parâmetro "custom" (documentado por
+      // eles como pass-through) — qualquer outro nome de parâmetro é
+      // descartado no checkout deles. Espelhamos o id ali também.
+      if (
+        hostIn(u.host, DIGISTORE_HOSTS) &&
+        !u.searchParams.get("custom")
+      ) {
+        u.searchParams.set("custom", trckId);
       }
       return u.toString();
     } catch {
@@ -289,13 +298,14 @@
   // Adiciona ?trck=<id> automaticamente nos links de compra/WhatsApp, sem
   // precisar editar link por link. Force qualquer link com data-trck; pule com
   // data-no-trck.
-  var CHECKOUT_HOSTS = [
-    "hotmart.com", // pay.hotmart.com, hotmart.com, etc.
+  var HOTMART_HOSTS = ["hotmart.com"]; // pay.hotmart.com, hotmart.com, etc.
+  var DIGISTORE_HOSTS = ["digistore24.com"]; // www.digistore24.com, checkout, etc.
+  var CHECKOUT_HOSTS = HOTMART_HOSTS.concat(DIGISTORE_HOSTS, [
     "wa.me",
     "whatsapp.com", // api.whatsapp.com, chat.whatsapp.com
-  ];
+  ]);
   // Só os hosts de PAGAMENTO disparam InitiateCheckout (WhatsApp não é checkout).
-  var PAYMENT_HOSTS = ["hotmart.com"];
+  var PAYMENT_HOSTS = HOTMART_HOSTS.concat(DIGISTORE_HOSTS);
   function hostIn(host, list) {
     host = host.toLowerCase();
     for (var i = 0; i < list.length; i++) {
@@ -307,7 +317,7 @@
   function matchHost(host) {
     return hostIn(host, CHECKOUT_HOSTS);
   }
-  /** É um link de checkout/pagamento (Hotmart) — dispara InitiateCheckout. */
+  /** É um link de checkout/pagamento (Hotmart/Digistore24) — dispara InitiateCheckout. */
   function isCheckoutLink(a) {
     if (!a || !a.getAttribute || !a.getAttribute("href")) return false;
     if (a.hasAttribute("data-no-checkout")) return false;
@@ -338,7 +348,7 @@
     }
   }
   // Captura no clique cobre links criados dinamicamente. Além de decorar o link,
-  // dispara InitiateCheckout ao clicar num link de pagamento (Hotmart).
+  // dispara InitiateCheckout ao clicar num link de pagamento (Hotmart/Digistore24).
   var lastCheckoutAt = 0;
   function fireInitiateCheckout() {
     var now = Date.now();

@@ -1,4 +1,5 @@
-// Normalizador GENÉRICO de webhooks de compra (Hotmart / Kiwify / Eduzz e outros).
+// Normalizador GENÉRICO de webhooks de compra (Hotmart / Kiwify / Eduzz /
+// DigitalGoat / Digistore24 e outros).
 // Estratégia: tenta uma lista de caminhos candidatos por campo e, se falhar, faz
 // uma busca recursiva por nome de chave. Fácil de estender com novos caminhos.
 
@@ -71,6 +72,16 @@ function toStr(v: unknown): string | null {
  * não como objeto. Aqui extraímos um parâmetro específico dessa URL, se o
  * campo existir e for mesmo uma URL válida.
  */
+/**
+ * Algumas plataformas (ex.: Digistore24) não mandam um campo de nome
+ * completo — só nome e sobrenome separados. Junta os dois, se existirem.
+ */
+function joinNameFields(raw: unknown, firstPath: string, lastPath: string): string | null {
+  const first = toStr(getPath(raw, firstPath));
+  const last = toStr(getPath(raw, lastPath));
+  return [first, last].filter(Boolean).join(" ").trim() || null;
+}
+
 function paramFromUrlField(raw: unknown, path: string, param: string): string | null {
   const v = getPath(raw, path);
   if (typeof v !== "string" || !v) return null;
@@ -141,9 +152,13 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       pick(raw, [
         "data.purchase.transaction",
         "transaction.id", // DigitalGoat
+        // "transaction_id" ANTES de "order_id": na Digistore24 o "order_id"
+        // é compartilhado entre TODAS as cobranças de uma assinatura
+        // (rebills) — usar ele aqui colapsaria cada rebill na mesma linha
+        // de compra. "transaction_id" é único por cobrança individual.
+        "transaction_id", // Digistore24 (e outras)
         "order_id",
         "trans_cod",
-        "transaction_id",
         "transaction",
         "order.id",
         "sale.id",
@@ -160,6 +175,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "data.purchase.full_price.value",
         "Commissions.charge_amount",
         "transaction.amount", // DigitalGoat
+        "amount_brutto", // Digistore24 (valor bruto pago pelo cliente)
         "trans_value",
         "order.amount",
         "value",
@@ -167,7 +183,14 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "price",
         "total",
       ]),
-      deepFind(raw, ["value", "amount", "price", "charge_amount", "trans_value"]),
+      deepFind(raw, [
+        "value",
+        "amount",
+        "price",
+        "charge_amount",
+        "trans_value",
+        "amount_brutto",
+      ]),
     ),
   );
 
@@ -176,6 +199,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       "data.purchase.price.currency_value",
       "transaction.currency", // DigitalGoat
       "currency",
+      "transaction_currency", // Digistore24
       "trans_currency",
       "order.currency",
     ]),
@@ -221,9 +245,17 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "client_cel",
         "buyer.phone",
         "client.phone", // DigitalGoat
+        "address_phone_no", // Digistore24
         "phone",
       ]),
-      deepFind(raw, ["phone", "mobile", "cellphone", "client_cel", "celular"]),
+      deepFind(raw, [
+        "phone",
+        "mobile",
+        "cellphone",
+        "client_cel",
+        "celular",
+        "address_phone_no",
+      ]),
     ),
   );
 
@@ -239,6 +271,8 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "name",
       ]),
       deepFind(raw, ["full_name", "name", "client_name"]),
+      // Digistore24: só manda nome/sobrenome separados, sem campo combinado.
+      joinNameFields(raw, "address_first_name", "address_last_name"),
     ),
   );
 
@@ -294,6 +328,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "data.purchase.sck",
         "trck",
         "trck_user_id",
+        "custom", // Digistore24 (único campo próprio deles que volta no IPN)
         "src",
         "sck",
         "s",
@@ -351,6 +386,12 @@ export function shouldDispatchPurchase(status: string | null): boolean {
     "printed_billet",
     "delayed",
     "failed",
+    // Digistore24: "on_payment_missed" (cobrança de assinatura falhou),
+    // "payment_denial" (pagamento negado) e "last_paid_day" (aviso de fim
+    // de período pago, sem cobrança nova) — nenhum desses é uma venda nova.
+    "missed",
+    "denial",
+    "last_paid",
   ];
   return !deny.some((d) => s.includes(d));
 }
@@ -377,6 +418,10 @@ export function shouldLogPurchaseEvent(status: string | null): boolean {
     "failed",
     "billet_printed",
     "printed_billet",
+    // Digistore24 — ver comentário em shouldDispatchPurchase.
+    "missed",
+    "denial",
+    "last_paid",
   ];
   return !deny.some((d) => s.includes(d));
 }
