@@ -192,54 +192,6 @@ export default async function OverviewPage({
       ),
     },
     {
-      id: "arpu",
-      title: "ARPU",
-      node: (
-        <Card className="min-w-0">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ARPU
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0">
-            <div
-              title={arpu != null ? formatCurrency(arpu) : "N/A"}
-              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-            >
-              {arpu != null ? formatCurrency(arpu) : "N/A"}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              receita ÷ pedidos aprovados
-            </p>
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
-      id: "cpa",
-      title: "CPA médio",
-      node: (
-        <Card className="min-w-0">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              CPA médio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0">
-            <div
-              title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-            >
-              {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              investimento ÷ pedidos aprovados
-            </p>
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
       id: "chargeback",
       title: "Chargeback",
       node: (
@@ -298,7 +250,7 @@ export default async function OverviewPage({
     {
       id: "spiderflow",
       title: "SpiderFlow — funil de conversão",
-      span: "full",
+      span: "lg",
       node: (
         <Card>
           <CardHeader className="pb-2">
@@ -314,6 +266,54 @@ export default async function OverviewPage({
               salesInit={funnel.salesInit}
               salesApproved={funnel.salesApproved}
             />
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "arpu",
+      title: "ARPU",
+      node: (
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              ARPU
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+            <div
+              title={arpu != null ? formatCurrency(arpu) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+            >
+              {arpu != null ? formatCurrency(arpu) : "N/A"}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              receita ÷ pedidos aprovados
+            </p>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "cpa",
+      title: "CPA médio",
+      node: (
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              CPA médio
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+            <div
+              title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
+            >
+              {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              investimento ÷ pedidos aprovados
+            </p>
           </CardContent>
         </Card>
       ),
@@ -335,15 +335,17 @@ export default async function OverviewPage({
       title: "Vendas por produto",
       span: "lg",
       node: (
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader>
             <CardTitle className="text-base">Vendas por produto</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-1 flex-col">
             {sales.byProduct.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Sem vendas no período.
-              </p>
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  Sem vendas no período.
+                </p>
+              </div>
             ) : (
               <ul className="space-y-3">
                 {sales.byProduct.map((p, i) => {
@@ -389,11 +391,11 @@ export default async function OverviewPage({
       title: "Taxa de Aprovação",
       span: "lg",
       node: (
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader>
             <CardTitle className="text-base">Taxa de Aprovação</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-1 flex-col justify-center">
             <ApprovalPanel methods={approval} />
           </CardContent>
         </Card>
@@ -404,11 +406,11 @@ export default async function OverviewPage({
       title: "Vendas por pagamento",
       span: "lg",
       node: (
-        <Card className="min-w-0">
+        <Card className="flex h-full min-w-0 flex-col">
           <CardHeader>
             <CardTitle className="text-base">Vendas por pagamento</CardTitle>
           </CardHeader>
-          <CardContent className="min-w-0">
+          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
             <PaymentDonut data={sales.byPayment} total={sales.total} />
           </CardContent>
         </Card>

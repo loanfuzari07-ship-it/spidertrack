@@ -198,7 +198,7 @@ export function DashboardCustomizer({
                     moveTo(section.id, id);
                   }}
                   className={cn(
-                    "min-w-0 rounded-lg transition",
+                    "flex min-w-0 flex-col rounded-lg transition",
                     SPAN_CLASS[span],
                     editing &&
                       "cursor-grab ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
@@ -210,7 +210,14 @@ export function DashboardCustomizer({
                       <span className="truncate">{block.title}</span>
                     </div>
                   ) : null}
-                  {block.node}
+                  {/* "min-h-0 [&>*]:h-full" faz o card (filho único aqui)
+                      esticar até a altura da célula da grade — sem isso,
+                      quando um vizinho na mesma linha é mais alto (ex.: funil
+                      ao lado de ARPU/CPA), o card curto fica "flutuando" no
+                      topo e sobra um vão em branco visível por baixo dele. */}
+                  <div className="min-h-0 flex-1 [&>*]:h-full">
+                    {block.node}
+                  </div>
                 </div>
               );
             })}

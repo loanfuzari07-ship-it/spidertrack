@@ -256,7 +256,7 @@ export function RevenueChart({ data }: { data: RevenueDay[] }) {
 
 function Empty() {
   return (
-    <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+    <div className="flex h-full min-h-32 items-center justify-center text-sm text-muted-foreground">
       Sem dados no período.
     </div>
   );
