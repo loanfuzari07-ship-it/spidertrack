@@ -214,18 +214,20 @@ export default async function OverviewPage({
                 Spider<span className="text-primary">Flow</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-1 flex-col justify-center pt-0">
-              <Funnel
-                clicks={clicks.clicks}
-                pageviews={funnel.pageviews}
-                ics={funnel.ics}
-                salesInit={funnel.salesInit}
-                salesApproved={funnel.salesApproved}
-              />
+            <CardContent className="flex min-h-0 flex-1 flex-col pt-0">
+              <div className="min-h-0 flex-1">
+                <Funnel
+                  clicks={clicks.clicks}
+                  pageviews={funnel.pageviews}
+                  ics={funnel.ics}
+                  salesInit={funnel.salesInit}
+                  salesApproved={funnel.salesApproved}
+                />
+              </div>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Linha 1 */}
             <Card className="flex min-w-0 flex-col">
               <CardHeader className="pb-2">
@@ -435,15 +437,17 @@ export default async function OverviewPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Visão geral" />
+      <PageHeader
+        title="Visão geral"
+        action={
+          <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
+        }
+      />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <PeriodSelector current={range.key} />
-          <AccountFilter current={accountParam} accounts={accounts} />
-          <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
-        </div>
-        <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodSelector current={range.key} />
+        <AccountFilter current={accountParam} accounts={accounts} />
+        <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
       </div>
 
       <DashboardCustomizer

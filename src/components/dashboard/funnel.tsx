@@ -85,17 +85,10 @@ export function Funnel({
   };
 
   return (
-    <div className="relative w-full">
-      {/* divisórias verticais sutis (atravessam rótulos, faixa e números) */}
-      <div className="pointer-events-none absolute inset-0 grid grid-cols-5">
-        {stages.map((s, i) => (
-          <div
-            key={s.label}
-            className={i > 0 ? "border-l border-white/[0.06]" : ""}
-          />
-        ))}
-      </div>
-
+    // "flex h-full flex-col": a faixa do meio (flex-1) cresce pra ocupar TODO
+    // o espaço vertical que o card der a ele — o funil fica proporcional ao
+    // espaço disponível em vez de ter uma altura fixa em pixels.
+    <div className="relative flex h-full w-full min-h-0 flex-col">
       <div className="grid grid-cols-5 pb-2 text-center text-xs font-medium text-muted-foreground">
         {stages.map((s) => (
           <span key={s.label} className="truncate px-1">
@@ -104,11 +97,21 @@ export function Funnel({
         ))}
       </div>
 
-      <div className="relative">
+      <div className="relative min-h-0 flex-1">
+        {/* divisórias verticais sutis (atravessam faixa e percentuais) */}
+        <div className="pointer-events-none absolute inset-0 grid grid-cols-5">
+          {stages.map((s, i) => (
+            <div
+              key={s.label}
+              className={i > 0 ? "border-l border-white/[0.06]" : ""}
+            />
+          ))}
+        </div>
+
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="none"
-          className="block h-20 w-full sm:h-24"
+          className="absolute inset-0 block h-full w-full"
           role="img"
           aria-label="Funil de conversão"
         >
