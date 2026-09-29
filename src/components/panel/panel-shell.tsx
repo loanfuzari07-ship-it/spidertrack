@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { BRAND_LOGO, BRAND_NAME, brandInitials } from "@/lib/branding";
+import { cn } from "@/lib/utils";
 
 /**
  * Marca do painel. Nome vem de `NEXT_PUBLIC_BRAND_NAME`; sem logo configurada,
@@ -86,8 +87,13 @@ function UserCard({
   lastName: string | null;
 }) {
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const display = name || email;
+  // Enquanto não há nome cadastrado, mostra só o usuário do e-mail (antes do
+  // "@") em vez do endereço inteiro — menos "cru" na sidebar — e troca o
+  // rótulo por um convite pra completar o perfil.
+  const emailHandle = email ? email.split("@")[0] : null;
+  const display = name || emailHandle || email;
   if (!display) return null;
+  const roleLabel = name ? "Usuário" : "Complete seu perfil";
 
   return (
     <Link
@@ -101,10 +107,20 @@ function UserCard({
         {initialsOf(name, email)}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium" title={display}>
+        <span
+          className="block truncate text-sm font-medium"
+          title={name || email || undefined}
+        >
           {display}
         </span>
-        <span className="block text-xs text-muted-foreground">Usuário</span>
+        <span
+          className={cn(
+            "block truncate text-xs",
+            name ? "text-muted-foreground" : "text-primary",
+          )}
+        >
+          {roleLabel}
+        </span>
       </span>
     </Link>
   );

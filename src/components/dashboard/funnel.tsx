@@ -108,7 +108,7 @@ export function Funnel({
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="none"
-          className="block h-28 w-full"
+          className="block h-20 w-full sm:h-24"
           role="img"
           aria-label="Funil de conversão"
         >

@@ -191,12 +191,12 @@ export default async function OverviewPage({
       span: "full",
       node: (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="text-base">
               Spider<span className="text-primary">Flow</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <Funnel
               clicks={clicks.clicks}
               pageviews={funnel.pageviews}
@@ -382,6 +382,7 @@ export default async function OverviewPage({
     {
       id: "vendas-reembolsadas",
       title: "Vendas reembolsadas",
+      span: "lg",
       node: (
         <StatCard
           label="Vendas reembolsadas"
@@ -393,6 +394,7 @@ export default async function OverviewPage({
     {
       id: "imposto-meta",
       title: "Imposto Meta Ads",
+      span: "lg",
       node: (
         <StatCard
           label="Imposto Meta Ads"
@@ -442,12 +444,8 @@ export default async function OverviewPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <PeriodSelector current={range.key} />
-          {accounts.length > 1 ? (
-            <AccountFilter current={accountParam} accounts={accounts} />
-          ) : null}
-          {ofertaOptions.length > 0 ? (
-            <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
-          ) : null}
+          <AccountFilter current={accountParam} accounts={accounts} />
+          <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
         </div>
         <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
       </div>

@@ -17,10 +17,13 @@ export interface DashboardBlock {
   span?: DashboardItemSpan;
 }
 
+// Classes SEM prefixo de breakpoint (aplicam já no mobile, onde a grade
+// também é de 2 colunas — ver container abaixo) para "lg"/"full" sempre
+// ocuparem a linha toda, e só ficarem menores lá no desktop (lg:).
 const SPAN_CLASS: Record<DashboardItemSpan, string> = {
   sm: "",
-  lg: "sm:col-span-2",
-  full: "sm:col-span-2 lg:col-span-4",
+  lg: "col-span-2",
+  full: "col-span-2 lg:col-span-4",
 };
 
 /**
@@ -135,7 +138,10 @@ export function DashboardCustomizer({
         </p>
       ) : null}
 
-      <div className="grid auto-rows-min grid-flow-row-dense grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 2 colunas já no celular (cartões de número lado a lado, sem vão) e 4
+          no desktop — "grid-flow-row-dense" preenche buracos, mas só funciona
+          bem se cada linha "fechar" certinho (ver spans dos blocos na page). */}
+      <div className="grid auto-rows-min grid-flow-row-dense grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {order.map((id) => {
           const block = byId.get(id);
           if (!block) return null;
