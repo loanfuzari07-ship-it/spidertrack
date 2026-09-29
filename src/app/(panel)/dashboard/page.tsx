@@ -199,110 +199,144 @@ export default async function OverviewPage({
     },
   ];
 
-  // Cartões maiores (funil, mapa, listas, gráficos). Os 4 "lg" ficam juntos
-  // de propósito — assim eles sempre formam pares de linha completa (2+2),
-  // e os "full" abrem/fecham sozinhos sua própria linha. Nada de vão em
-  // branco, em qualquer ordem que o usuário arrastar DENTRO deste grupo.
+  // Cartões maiores (funil, mapa, listas, gráficos). Cada um é um bloco
+  // independente — arrastável sozinho, sem levar vizinho junto. Os tamanhos
+  // ("lg" = 2 colunas, "sm" = 1) são escolhidos pra sempre fechar linha
+  // exata (múltiplo de 4) não importa a ordem que o usuário arrastar: hoje
+  // são 5 "lg" (10 = 2+2+2+2+2) + 6 "sm" (6) + 2 "full" (8) = 24, ou seja,
+  // 6 linhas de 4 sempre fecham — o "grid-flow-row-dense" da grade
+  // (`dashboard-customizer.tsx`) preenche qualquer buraco temporário com o
+  // próximo cartão pequeno que couber, então nunca sobra vão em branco.
   const contentBlocks: DashboardBlock[] = [
     {
-      // Funil grande à esquerda (mesma altura das 3 linhas de cartões à
-      // direita) + uma grade 2×3 de métricas secundárias — um único bloco
-      // "full", já que a proporção interna (funil alto + grade fina) só faz
-      // sentido junta; os 6 cartõezinhos não são arrastáveis à parte.
-      id: "spiderflow-hero",
+      id: "spiderflow",
       title: "SpiderFlow — funil de conversão",
-      span: "full",
+      span: "lg",
       node: (
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          {/* Abaixo do "lg" essa grade vira 1 coluna só (funil e cartões
-              empilhados) — sem uma 2ª coluna pra "esticar contra", o cartão
-              do funil perdia a altura (ficava com 0px, funil sumia). Altura
-              fixa resolve nesse caso; do "lg" pra cima volta a acompanhar a
-              altura da grade de cartões ao lado (h-full + items-stretch). */}
-          <Card className="flex h-64 flex-col lg:h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                Spider<span className="text-primary">Flow</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 flex-col pt-0">
-              <div className="min-h-0 flex-1">
-                <Funnel
-                  clicks={clicks.clicks}
-                  pageviews={funnel.pageviews}
-                  ics={funnel.ics}
-                  salesInit={funnel.salesInit}
-                  salesApproved={funnel.salesApproved}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Linha 1 */}
-            <Card className="flex min-w-0 flex-col">
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  ARPU
-                </CardTitle>
-                <InfoTooltip text="Receita ÷ pedidos aprovados." />
-              </CardHeader>
-              <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
-                <div
-                  title={arpu != null ? formatCurrency(arpu) : "N/A"}
-                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
-                >
-                  {arpu != null ? formatCurrency(arpu) : "N/A"}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="flex min-w-0 flex-col">
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  CPA médio
-                </CardTitle>
-                <InfoTooltip text="Investimento ÷ pedidos aprovados." />
-              </CardHeader>
-              <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
-                <div
-                  title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
-                >
-                  {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-                </div>
-              </CardContent>
-            </Card>
-            {/* Linha 2 */}
-            <StatCard
-              label="Vendas pendentes"
-              value={formatCurrency(salesStatus.pendingValue)}
-              hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
-            />
-            <StatCard
-              label="Vendas reembolsadas"
-              value={formatPercent(refundRate)}
-              hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
-            />
-            {/* Linha 3 */}
-            <StatCard
-              label="Chargeback"
-              value={formatPercent(chargeback.rate)}
-              hint={
-                chargeback.count > 0
-                  ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
-                  : "sem casos no período"
-              }
-              valueClassName={
-                chargeback.rate > 0.02 ? "text-destructive" : undefined
-              }
-            />
-            <StatCard
-              label="Imposto Meta Ads"
-              value={formatCurrency(impostoMetaAds)}
-              hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
-            />
-          </div>
-        </div>
+        // Altura fixa (não "h-full") de propósito: o funil é um SVG que
+        // precisa de uma altura definida pra não colapsar a 0px, e agora que
+        // ele é um cartão independente não dá mais pra confiar num vizinho
+        // "alto" ao lado pra esticar contra (podem reordenar e colocar outro
+        // cartão pequeno do lado, que não tem essa altura).
+        <Card className="flex h-72 flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Spider<span className="text-primary">Flow</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col pt-0">
+            <div className="min-h-0 flex-1">
+              <Funnel
+                clicks={clicks.clicks}
+                pageviews={funnel.pageviews}
+                ics={funnel.ics}
+                salesInit={funnel.salesInit}
+                salesApproved={funnel.salesApproved}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "arpu",
+      title: "ARPU",
+      span: "sm",
+      node: (
+        <Card className="flex h-full min-w-0 flex-col">
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              ARPU
+            </CardTitle>
+            <InfoTooltip text="Receita ÷ pedidos aprovados." />
+          </CardHeader>
+          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+            <div
+              title={arpu != null ? formatCurrency(arpu) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
+            >
+              {arpu != null ? formatCurrency(arpu) : "N/A"}
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "cpa-medio",
+      title: "CPA médio",
+      span: "sm",
+      node: (
+        <Card className="flex h-full min-w-0 flex-col">
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              CPA médio
+            </CardTitle>
+            <InfoTooltip text="Investimento ÷ pedidos aprovados." />
+          </CardHeader>
+          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+            <div
+              title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
+            >
+              {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      id: "vendas-pendentes",
+      title: "Vendas pendentes",
+      span: "sm",
+      node: (
+        <StatCard
+          label="Vendas pendentes"
+          value={formatCurrency(salesStatus.pendingValue)}
+          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
+        />
+      ),
+    },
+    {
+      id: "vendas-reembolsadas",
+      title: "Vendas reembolsadas",
+      span: "sm",
+      node: (
+        <StatCard
+          label="Vendas reembolsadas"
+          value={formatPercent(refundRate)}
+          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
+        />
+      ),
+    },
+    {
+      id: "chargeback",
+      title: "Chargeback",
+      span: "sm",
+      node: (
+        <StatCard
+          label="Chargeback"
+          value={formatPercent(chargeback.rate)}
+          hint={
+            chargeback.count > 0
+              ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
+              : "sem casos no período"
+          }
+          valueClassName={
+            chargeback.rate > 0.02 ? "text-destructive" : undefined
+          }
+        />
+      ),
+    },
+    {
+      id: "imposto-meta-ads",
+      title: "Imposto Meta Ads",
+      span: "sm",
+      node: (
+        <StatCard
+          label="Imposto Meta Ads"
+          value={formatCurrency(impostoMetaAds)}
+          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
+        />
       ),
     },
     {

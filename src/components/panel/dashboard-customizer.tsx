@@ -30,13 +30,20 @@ export interface DashboardSection {
 }
 
 // No mobile a grade é de 1 coluna só (1 card por linha — ver container
-// abaixo), então "col-span-2" nem faz efeito ali (o navegador limita ao
-// número de colunas que existe); a partir do "sm" (2 colunas) e "lg" (4
-// colunas) que os tamanhos "lg"/"full" realmente entram em ação.
+// abaixo). O "col-span-2" só entra a partir do "sm" (2 colunas) — sem o
+// prefixo "sm:", um "col-span-2" "cru" abaixo desse breakpoint faz o
+// navegador criar uma 2ª coluna IMPLÍCITA pra caber o item (o grid de 1
+// coluna explícita não "trava" o span em 1, como parecia — ele só não dava
+// pra notar antes porque todo item dessa seção era "lg"/"full", então os
+// dois consumiam a coluna extra e ainda fechavam 100% da largura). Ao
+// misturar com cartões "sm" (sem span) essa 2ª coluna fantasma passou a
+// sobrar espaço pra eles ocuparem, quebrando a pilha de 1 coluna no
+// celular. Prefixando com "sm:" o span simplesmente não existe abaixo
+// desse breakpoint — sem coluna implícita, sem esse bug.
 const SPAN_CLASS: Record<DashboardItemSpan, string> = {
   sm: "",
-  lg: "col-span-2",
-  full: "col-span-2 lg:col-span-4",
+  lg: "sm:col-span-2",
+  full: "sm:col-span-2 lg:col-span-4",
 };
 
 function defaultOrders(sections: DashboardSection[]): Record<string, string[]> {

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { PanelShell } from "@/components/panel/panel-shell";
 import { getLifetimeRevenue, getSource } from "@/lib/dashboard/data";
 import { IS_DEMO } from "@/lib/demo/mode";
+import { getVapidPublicKey } from "@/lib/push/vapid";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -19,6 +21,15 @@ export default async function PanelLayout({
 }) {
   const src = await getSource();
   const lifetimeRevenue = await getLifetimeRevenue(src);
+
+  // Sem banco (modo demo) não há onde guardar chave/inscrição nenhuma — o
+  // botão de notificações some sozinho (publicKey null).
+  const vapidPublicKey = IS_DEMO
+    ? null
+    : await getVapidPublicKey(createAdminClient()).catch((e) => {
+        console.error("[push] vapid keys:", e);
+        return null;
+      });
 
   if (IS_DEMO) {
     return (
@@ -47,6 +58,7 @@ export default async function PanelLayout({
       firstName={firstName}
       lastName={lastName}
       lifetimeRevenue={lifetimeRevenue}
+      vapidPublicKey={vapidPublicKey}
     >
       {children}
     </PanelShell>

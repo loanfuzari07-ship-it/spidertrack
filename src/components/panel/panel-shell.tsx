@@ -4,6 +4,7 @@ import { FlaskConical, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { signOut } from "@/app/(panel)/actions";
+import { PushNotificationButton } from "@/components/push-notification-button";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { RevenueGoalWidget } from "@/components/panel/revenue-goal-widget";
 import { SidebarNav } from "@/components/panel/sidebar-nav";
@@ -151,6 +152,7 @@ export function PanelShell({
   lastName = null,
   demo = false,
   lifetimeRevenue,
+  vapidPublicKey = null,
   children,
 }: {
   email: string | null;
@@ -161,6 +163,9 @@ export function PanelShell({
   demo?: boolean;
   /** Faturamento vitalício (todo o histórico) — placar de metas da lateral. */
   lifetimeRevenue: number;
+  /** Chave pública VAPID (notificações push) — null no modo demo, onde não
+   *  há banco pra guardar inscrição nenhuma. */
+  vapidPublicKey?: string | null;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -240,6 +245,7 @@ export function PanelShell({
                 do alternador de tema — pedido do usuário. Fica vazio nas
                 páginas que não usam customização de grade. */}
             <div id="dashboard-personalizar-slot" className="contents" />
+            <PushNotificationButton publicKey={vapidPublicKey} variant="ghost" size="icon" />
             <PwaInstallButton variant="ghost" size="icon" iconOnly />
             <ThemeToggle />
             {demo ? null : (

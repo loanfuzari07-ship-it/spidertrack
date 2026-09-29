@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { after } from "next/server";
 import { getClientIp } from "@/lib/capture/geo";
 import { jsonResponse, notConfiguredResponse } from "@/lib/capture/http";
 import { consumeRateLimit } from "@/lib/capture/ratelimit";
@@ -12,6 +13,8 @@ import {
   normalizePhone,
 } from "@/lib/hash";
 import { productKey } from "@/lib/products";
+import { convertToBRL } from "@/lib/push/currency";
+import { sendApprovedSalePush } from "@/lib/push/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   normalizePurchase,
@@ -353,6 +356,26 @@ export async function POST(req: Request) {
     response_meta: meta.results,
     payload_ga4: ga4Payload,
     response_ga4: ga4Results,
+  });
+
+  // Notificação push "Venda aprovada!" — só chega até aqui quando
+  // `willDispatch` é true (mesma regra do disparo pro Meta/GA4, ou seja,
+  // status "aprovado" e não uma reentrega de webhook já processado antes).
+  // Roda depois de responder ao webhook (`after`) pra não atrasar a
+  // plataforma de pagamento esperando a cotação de moeda + o envio do push.
+  // Valor sempre em reais: pega o mesmo `value` que a plataforma mandou (já
+  // seu valor líquido, sem impostos daqui) e só converte a moeda se a oferta
+  // não rodar em BRL.
+  after(async () => {
+    try {
+      const commissionBRL = await convertToBRL(norm.value ?? 0, currency);
+      await sendApprovedSalePush(admin, commissionBRL);
+    } catch (e) {
+      console.error(
+        "[webhook] notificação push falhou:",
+        e instanceof Error ? e.message : e,
+      );
+    }
   });
 
   return jsonResponse({
