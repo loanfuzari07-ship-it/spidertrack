@@ -45,10 +45,26 @@ function defaultOrders(sections: DashboardSection[]): Record<string, string[]> {
   );
 }
 
+interface DragState {
+  sectionId: string;
+  id: string;
+  title: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  /** Só vira drag de verdade depois de passar de um limiar de movimento —
+   *  evita sequestrar um toque/clique simples (ex.: no ícone de info). */
+  moved: boolean;
+}
+
 /**
  * Envolve as seções de uma tela e permite reordenar os itens DENTRO de cada
  * uma arrastando (modo "Personalizar"). A ordem é salva só no navegador
  * (localStorage) — é uma preferência de exibição, não dado do negócio.
+ *
+ * Usa Pointer Events (não o drag-and-drop nativo do HTML5, que não funciona
+ * por toque na maioria dos navegadores mobile) — assim o mesmo código
+ * arrasta livremente tanto no mouse (desktop) quanto no dedo (celular).
  */
 export function DashboardCustomizer({
   sections,
@@ -61,7 +77,22 @@ export function DashboardCustomizer({
     defaultOrders(sections),
   );
   const [editing, setEditing] = useState(false);
-  const dragRef = useRef<{ section: string; id: string } | null>(null);
+
+  // Estado do arrasto em andamento. `dragStateRef` guarda os dados "vivos"
+  // (lidos/escritos a cada pointermove, sem re-render); os três `useState`
+  // abaixo só mudam quando algo *visível* muda (começou a arrastar, mudou o
+  // alvo de soltar) — mantém a UI fluida sem re-renderizar a grade inteira
+  // a cada pixel de movimento.
+  const dragStateRef = useRef<DragState | null>(null);
+  const dropTargetRef = useRef<string | null>(null);
+  const itemElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const sectionElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const floatingElRef = useRef<HTMLDivElement>(null);
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingTitle, setDraggingTitle] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
   // Botão "Personalizar" mora no header global (barrinha do alternador de
   // tema), fora da árvore desta página — usamos um portal pro elemento com
   // esse id, criado pelo `PanelShell`. Só existe no navegador, por isso o
@@ -126,18 +157,130 @@ export function DashboardCustomizer({
     }
   }
 
-  function moveTo(sectionId: string, targetId: string) {
-    const drag = dragRef.current;
-    dragRef.current = null;
-    if (!drag || drag.section !== sectionId || drag.id === targetId) return;
-    const order = orders[sectionId] ?? [];
-    const fromIdx = order.indexOf(drag.id);
-    const toIdx = order.indexOf(targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const nextOrder = [...order];
-    nextOrder.splice(fromIdx, 1);
-    nextOrder.splice(toIdx, 0, drag.id);
-    persist({ ...orders, [sectionId]: nextOrder });
+  function moveTo(sectionId: string, dragId: string, targetId: string) {
+    if (dragId === targetId) return;
+    setOrders((prev) => {
+      const order = prev[sectionId] ?? [];
+      const fromIdx = order.indexOf(dragId);
+      const toIdx = order.indexOf(targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const nextOrder = [...order];
+      nextOrder.splice(fromIdx, 1);
+      nextOrder.splice(toIdx, 0, dragId);
+      const next = { ...prev, [sectionId]: nextOrder };
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        // preferência só não persiste nesse navegador — segue funcionando.
+      }
+      return next;
+    });
+  }
+
+  function registerItemEl(id: string, node: HTMLDivElement | null) {
+    if (node) itemElsRef.current.set(id, node);
+    else itemElsRef.current.delete(id);
+  }
+
+  function registerSectionEl(id: string, node: HTMLDivElement | null) {
+    if (node) sectionElsRef.current.set(id, node);
+    else sectionElsRef.current.delete(id);
+  }
+
+  function handlePointerDown(
+    e: React.PointerEvent<HTMLDivElement>,
+    sectionId: string,
+    id: string,
+    title: string,
+  ) {
+    if (!editing) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragStateRef.current = {
+      sectionId,
+      id,
+      title,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+    };
+  }
+
+  function findDropTarget(sectionId: string, dragId: string, x: number, y: number) {
+    const container = sectionElsRef.current.get(sectionId);
+    if (!container) return null;
+    let bestId: string | null = null;
+    let bestDist = Infinity;
+    for (const [id, node] of itemElsRef.current) {
+      if (id === dragId || !container.contains(node)) continue;
+      const r = node.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return id;
+      }
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestId = id;
+      }
+    }
+    return bestId;
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const ds = dragStateRef.current;
+    if (!ds || e.pointerId !== ds.pointerId) return;
+
+    if (!ds.moved) {
+      const dx = e.clientX - ds.startX;
+      const dy = e.clientY - ds.startY;
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      ds.moved = true;
+      try {
+        e.currentTarget.setPointerCapture?.(ds.pointerId);
+      } catch {
+        // Pointer já pode ter sido liberado (ex.: gesto sintético/edge case
+        // do navegador) — não é fatal, o arrasto continua funcionando pelos
+        // eventos que ainda chegarem normalmente.
+      }
+      setDraggingId(ds.id);
+      setDraggingTitle(ds.title);
+    }
+
+    e.preventDefault();
+    const fl = floatingElRef.current;
+    if (fl) {
+      fl.style.transform = `translate3d(${e.clientX + 16}px, ${e.clientY + 16}px, 0)`;
+    }
+
+    const target = findDropTarget(ds.sectionId, ds.id, e.clientX, e.clientY);
+    if (target !== dropTargetRef.current) {
+      dropTargetRef.current = target;
+      setDropTargetId(target);
+    }
+  }
+
+  function finishDrag(e: React.PointerEvent<HTMLDivElement>) {
+    const ds = dragStateRef.current;
+    if (!ds || e.pointerId !== ds.pointerId) return;
+    dragStateRef.current = null;
+    const targetId = dropTargetRef.current;
+    dropTargetRef.current = null;
+    setDropTargetId(null);
+    setDraggingId(null);
+    setDraggingTitle(null);
+    if (ds.moved && targetId) {
+      moveTo(ds.sectionId, ds.id, targetId);
+    }
+  }
+
+  function cancelDrag() {
+    dragStateRef.current = null;
+    dropTargetRef.current = null;
+    setDropTargetId(null);
+    setDraggingId(null);
+    setDraggingTitle(null);
   }
 
   // Botão só-ícone que mora no header global, ao lado do alternador de
@@ -158,6 +301,23 @@ export function DashboardCustomizer({
   return (
     <div className="space-y-6">
       {personalizarSlot ? createPortal(personalizarButton, personalizarSlot) : null}
+
+      {/* Card "fantasma" que segue o dedo/cursor durante o arrasto — some
+          sozinho quando o toque termina, já que só é montado enquanto
+          `draggingId` existe. */}
+      {draggingId
+        ? createPortal(
+            <div
+              ref={floatingElRef}
+              className="pointer-events-none fixed left-0 top-0 z-[100] flex max-w-[70vw] items-center gap-1.5 rounded-md border border-primary bg-popover px-3 py-2 text-xs font-medium text-popover-foreground shadow-lg"
+              style={{ willChange: "transform" }}
+            >
+              <GripVertical className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate">{draggingTitle}</span>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {editing ? (
         <div className="flex items-center justify-end gap-2">
@@ -185,9 +345,9 @@ export function DashboardCustomizer({
 
       {editing ? (
         <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
-          Arraste cada item pela alça pra reordenar — dá pra trocar só dois
-          cards de lugar, sem mudar o resto da tela. A ordem fica salva só
-          neste navegador.
+          Toque e segure (ou clique e arraste no computador) um cartão pela
+          alça pra movê-lo pra qualquer posição — solte em cima de outro
+          lugar da grade. A ordem fica salva só neste navegador.
         </p>
       ) : null}
 
@@ -197,32 +357,34 @@ export function DashboardCustomizer({
         return (
           <div
             key={section.id}
+            ref={(node) => registerSectionEl(section.id, node)}
             className="grid auto-rows-min grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
           >
             {order.map((id) => {
               const block = byId.get(id);
               if (!block) return null;
               const span = block.span ?? "sm";
+              const isDragging = draggingId === id;
+              const isDropTarget = dropTargetId === id && draggingId !== id;
               return (
                 <div
                   key={id}
-                  draggable={editing}
-                  onDragStart={(e) => {
-                    dragRef.current = { section: section.id, id };
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  onDragOver={(e) => {
-                    if (editing) e.preventDefault();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    moveTo(section.id, id);
-                  }}
+                  ref={(node) => registerItemEl(id, node)}
+                  onPointerDown={(e) =>
+                    handlePointerDown(e, section.id, id, block.title)
+                  }
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={finishDrag}
+                  onPointerCancel={cancelDrag}
+                  style={editing ? { touchAction: "none" } : undefined}
                   className={cn(
                     "flex min-w-0 flex-col rounded-lg transition",
                     SPAN_CLASS[span],
                     editing &&
-                      "cursor-grab ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
+                      "cursor-grab select-none ring-1 ring-dashed ring-border/70 active:cursor-grabbing",
+                    isDragging && "opacity-40",
+                    isDropTarget &&
+                      "ring-2 ring-primary ring-offset-2 ring-offset-background",
                   )}
                 >
                   {editing ? (

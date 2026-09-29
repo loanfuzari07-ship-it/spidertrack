@@ -9,6 +9,7 @@ import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { RefreshBar } from "@/components/dashboard/refresh-bar";
 import { refreshTimeAgoLabel } from "@/lib/dashboard/refresh-label";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   DashboardCustomizer,
   type DashboardBlock,
@@ -153,10 +154,10 @@ export default async function OverviewPage({
         <StatCard
           label="Faturamento total"
           value={formatCurrency(faturamentoLiquido)}
-          hint={
+          info={
             finance.platformFeeRate > 0
-              ? `líquido · já descontada a taxa da plataforma (${(finance.platformFeeRate * 100).toFixed(1)}%)`
-              : "líquido de taxa da plataforma"
+              ? `Líquido · já descontada a taxa da plataforma (${(finance.platformFeeRate * 100).toFixed(1)}%).`
+              : "Líquido de taxa da plataforma."
           }
         />
       ),
@@ -240,10 +241,11 @@ export default async function OverviewPage({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Linha 1 */}
             <Card className="flex min-w-0 flex-col">
-              <CardHeader className="pb-2">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   ARPU
                 </CardTitle>
+                <InfoTooltip text="Receita ÷ pedidos aprovados." />
               </CardHeader>
               <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
                 <div
@@ -252,16 +254,14 @@ export default async function OverviewPage({
                 >
                   {arpu != null ? formatCurrency(arpu) : "N/A"}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  receita ÷ pedidos aprovados
-                </p>
               </CardContent>
             </Card>
             <Card className="flex min-w-0 flex-col">
-              <CardHeader className="pb-2">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   CPA médio
                 </CardTitle>
+                <InfoTooltip text="Investimento ÷ pedidos aprovados." />
               </CardHeader>
               <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
                 <div
@@ -270,9 +270,6 @@ export default async function OverviewPage({
                 >
                   {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  investimento ÷ pedidos aprovados
-                </p>
               </CardContent>
             </Card>
             {/* Linha 2 */}

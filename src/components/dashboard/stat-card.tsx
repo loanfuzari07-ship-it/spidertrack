@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { cn } from "@/lib/utils";
 
 /** Cartão de KPI (número tabular grande + rótulo; ícone opcional). */
@@ -7,6 +8,7 @@ export function StatCard({
   label,
   value,
   hint,
+  info,
   icon: Icon,
   accent = "text-primary",
   labelClassName,
@@ -14,7 +16,10 @@ export function StatCard({
 }: {
   label: string;
   value: string;
+  /** Texto pequeno fixo embaixo do valor (dado dinâmico, ex.: contagem). */
   hint?: string;
+  /** Explicação do que é o KPI — vira um ícone "i" no canto, só aparece ao tocar. */
+  info?: string;
   icon?: LucideIcon;
   accent?: string;
   labelClassName?: string;
@@ -31,9 +36,10 @@ export function StatCard({
         >
           {label}
         </CardTitle>
-        {Icon ? (
-          <Icon className={`size-4 shrink-0 ${accent}`} />
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {info ? <InfoTooltip text={info} /> : null}
+          {Icon ? <Icon className={`size-4 shrink-0 ${accent}`} /> : null}
+        </div>
       </CardHeader>
       <CardContent className="min-w-0">
         <div
