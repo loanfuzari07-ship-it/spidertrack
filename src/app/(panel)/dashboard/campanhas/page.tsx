@@ -329,12 +329,6 @@ export default async function CampanhasPage({
         ads={ads}
         currency={currency}
       />
-
-      <p className="text-xs text-muted-foreground">
-        Editar orçamento e ativar/pausar escrevem no Meta (exige token com
-        <code> ads_management</code>). Compras/ROAS vêm do webhook, vinculados por
-        UTM (nome ou id).
-      </p>
     </div>
   );
 }

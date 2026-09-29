@@ -148,14 +148,6 @@ export function ProductsSection({
     <div className="space-y-4">
       <div className="space-y-1">
         <h2 className="font-semibold">Produtos</h2>
-        <p className="text-sm text-muted-foreground">
-          Produtos que já geraram venda. Marque a Oferta de cada produto (ex.:
-          &quot;Oferta 1&quot;) para agrupar campanhas e resultados na aba Ofertas.
-          Desligue o envio ao Meta para os que não quer marcar no Gerenciador
-          (ex.: upsells). Se você tem mais de um Pixel/propriedade GA4 (um por
-          produto, por exemplo), escolha aqui qual cada produto usa — sem
-          escolher, manda pra todos os ativos.
-        </p>
       </div>
 
       {products.length === 0 ? (

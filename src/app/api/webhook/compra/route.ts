@@ -143,6 +143,17 @@ export async function POST(req: Request) {
     return jsonResponse({ error: "invalid_body" }, 400);
   }
 
+  // A Digistore24 manda um evento `connection_test` (sem transaction_id
+  // nenhum) quando a pessoa clica em "Testar conexão" na configuração do
+  // IPN — não é uma venda de verdade, é só um ping. Responde "OK" na hora,
+  // sem cair na validação de venda (que rejeitaria por falta de
+  // transaction_id). Outras plataformas nunca mandam esse campo assim, então
+  // isso não afeta ninguém mais.
+  const eventField = (raw as Record<string, unknown>).event;
+  if (typeof eventField === "string" && eventField.toLowerCase() === "connection_test") {
+    return okResponse({ ok: true, test: true }, plainOk);
+  }
+
   const norm = normalizePurchase(raw);
   if (!norm.transaction_id) {
     return jsonResponse({ error: "missing_transaction_id" }, 400);

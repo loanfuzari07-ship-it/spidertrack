@@ -186,14 +186,6 @@ export default async function OfertasPage({
           })}
         </div>
       )}
-
-      <p className="text-xs text-muted-foreground">
-        Investimento vem das campanhas do Meta Ads casadas por UTM às vendas de
-        cada oferta (nome ou id da campanha); faturamento vem dos produtos
-        marcados com a mesma oferta em Configurações. Lucro e ROAS usam a mesma
-        fórmula da Visão geral (taxa da plataforma e Imposto Meta Ads definidos
-        em Configurações).
-      </p>
     </div>
   );
 }
