@@ -33,59 +33,97 @@ export async function getSource(): Promise<Source> {
 // `oferta` filtra por uma Oferta (definida em Configurações → Produtos);
 // undefined/"all" = todas. `campaignKeys` (Vis.Página/ICs) vem do mapa
 // campanha→oferta (`getOfertaMaps`) — quem chama monta o Set uma vez por página.
-export const getOverview = (s: Source, r: DateRange, oferta?: string) =>
-  s.db ? q.getOverview(s.db, r, oferta) : Promise.resolve(demo.overview(r, oferta));
+export const getOverview = (s: Source, r: DateRange, oferta?: string, product?: string) =>
+  s.db
+    ? q.getOverview(s.db, r, oferta, product)
+    : Promise.resolve(demo.overview(r, oferta, product));
 
 export const getFunnel = (
   s: Source,
   r: DateRange,
   oferta?: string,
   campaignKeys?: Set<string> | null,
+  product?: string,
 ) =>
   s.db
-    ? q.getFunnel(s.db, r, oferta, campaignKeys)
-    : Promise.resolve(demo.funnel(r, oferta, campaignKeys));
+    ? q.getFunnel(s.db, r, oferta, campaignKeys, product)
+    : Promise.resolve(demo.funnel(r, oferta, campaignKeys, product));
 
-export const getSalesStatusCounts = (s: Source, r: DateRange, oferta?: string) =>
+export const getSalesStatusCounts = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getSalesStatusCounts(s.db, r, oferta)
-    : Promise.resolve(demo.salesStatus(r, oferta));
+    ? q.getSalesStatusCounts(s.db, r, oferta, product)
+    : Promise.resolve(demo.salesStatus(r, oferta, product));
 
-export const getSalesByCountry = (s: Source, r: DateRange, oferta?: string) =>
+export const getSalesByCountry = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getSalesByCountry(s.db, r, oferta)
-    : Promise.resolve(demo.salesByCountry(r, oferta));
+    ? q.getSalesByCountry(s.db, r, oferta, product)
+    : Promise.resolve(demo.salesByCountry(r, oferta, product));
 
-export const getSalesBreakdown = (s: Source, r: DateRange, oferta?: string) =>
+export const getSalesBreakdown = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getSalesBreakdown(s.db, r, oferta)
-    : Promise.resolve(demo.salesBreakdown(r, oferta));
+    ? q.getSalesBreakdown(s.db, r, oferta, product)
+    : Promise.resolve(demo.salesBreakdown(r, oferta, product));
 
 export const getEventsByType = (s: Source, r: DateRange) =>
   s.db ? q.getEventsByType(s.db, r) : Promise.resolve(demo.eventsByType(r));
 
-export const getRevenueDaily = (s: Source, r: DateRange, oferta?: string) =>
+export const getRevenueDaily = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getRevenueDaily(s.db, r, oferta)
-    : Promise.resolve(demo.revenueDaily(r, oferta));
+    ? q.getRevenueDaily(s.db, r, oferta, product)
+    : Promise.resolve(demo.revenueDaily(r, oferta, product));
 
 export const getFaturamento = (s: Source, r: DateRange) =>
   s.db ? q.getFaturamento(s.db, r) : Promise.resolve(demo.faturamento(r));
 
-export const getChargebackStats = (s: Source, r: DateRange, oferta?: string) =>
+export const getChargebackStats = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getChargebackStats(s.db, r, oferta)
-    : Promise.resolve(demo.chargebackStats(r, oferta));
+    ? q.getChargebackStats(s.db, r, oferta, product)
+    : Promise.resolve(demo.chargebackStats(r, oferta, product));
 
-export const getApprovalByMethod = (s: Source, r: DateRange, oferta?: string) =>
+export const getApprovalByMethod = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getApprovalByMethod(s.db, r, oferta)
-    : Promise.resolve(demo.approvalByMethod(r, oferta));
+    ? q.getApprovalByMethod(s.db, r, oferta, product)
+    : Promise.resolve(demo.approvalByMethod(r, oferta, product));
 
-export const getSalesByHour = (s: Source, r: DateRange, oferta?: string) =>
+export const getSalesByHour = (
+  s: Source,
+  r: DateRange,
+  oferta?: string,
+  product?: string,
+) =>
   s.db
-    ? q.getSalesByHour(s.db, r, oferta)
-    : Promise.resolve(demo.salesByHour(r, oferta));
+    ? q.getSalesByHour(s.db, r, oferta, product)
+    : Promise.resolve(demo.salesByHour(r, oferta, product));
 
 export const getLifetimeRevenue = (s: Source) =>
   s.db ? q.getLifetimeRevenue(s.db) : Promise.resolve(demo.lifetimeRevenue());

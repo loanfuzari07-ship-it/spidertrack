@@ -234,6 +234,11 @@ export function PanelShell({
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Alvo de portal: páginas com `DashboardCustomizer` (ex.: Visão
+                geral) colocam aqui o botão "Personalizar" (só ícone), do lado
+                do alternador de tema — pedido do usuário. Fica vazio nas
+                páginas que não usam customização de grade. */}
+            <div id="dashboard-personalizar-slot" className="contents" />
             <ThemeToggle />
             {demo ? null : (
               <div className="hidden md:block">

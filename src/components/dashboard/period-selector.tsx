@@ -52,7 +52,7 @@ export function PeriodSelector({ current }: { current: RangeKey }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={current} onValueChange={(v) => select(v as RangeKey)}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-full sm:w-40">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

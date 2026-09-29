@@ -6,6 +6,7 @@ export type RangeKey =
   | "7d"
   | "30d"
   | "month"
+  | "last_month"
   | "custom";
 
 export interface DateRange {
@@ -21,6 +22,7 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: "7d", label: "7 dias" },
   { key: "30d", label: "30 dias" },
   { key: "month", label: "Este mês" },
+  { key: "last_month", label: "Mês passado" },
   { key: "custom", label: "Personalizado" },
 ];
 
@@ -59,9 +61,15 @@ export function parseRange(
   toParam?: string,
 ): DateRange {
   const key = (
-    ["yesterday", "today", "7d", "30d", "month", "custom"].includes(
-      value ?? "",
-    )
+    [
+      "yesterday",
+      "today",
+      "7d",
+      "30d",
+      "month",
+      "last_month",
+      "custom",
+    ].includes(value ?? "")
       ? value
       : "today"
   ) as RangeKey;
@@ -95,6 +103,22 @@ export function parseRange(
     const ymd = spDay(now);
     const firstOfMonth = `${ymd.slice(0, 7)}-01`;
     return { key, from: startOfSpDay(firstOfMonth).toISOString(), to, label };
+  }
+  if (key === "last_month") {
+    // Mês civil anterior inteiro (fuso SP): do dia 1 do mês passado até o
+    // dia 1 deste mês (exclusivo) — não depende de quantos dias tem o mês.
+    const ymd = spDay(now);
+    const [y, m] = ymd.slice(0, 7).split("-").map(Number);
+    const prevY = m === 1 ? y - 1 : y;
+    const prevM = m === 1 ? 12 : m - 1;
+    const firstOfThisMonth = `${ymd.slice(0, 7)}-01`;
+    const firstOfLastMonth = `${prevY}-${String(prevM).padStart(2, "0")}-01`;
+    return {
+      key,
+      from: startOfSpDay(firstOfLastMonth).toISOString(),
+      to: startOfSpDay(firstOfThisMonth).toISOString(),
+      label,
+    };
   }
 
   // Personalizado: from/to (YYYY-MM-DD, dias de SP). `to` é exclusivo → início

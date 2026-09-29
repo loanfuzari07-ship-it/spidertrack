@@ -9,6 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/** Dropdown "Todos os produtos ▾" — filtra a tela por um produto específico
+ *  (nome exato, mesmo padrão já usado na lista de compras). */
 export function ProductFilter({
   current,
   products,
@@ -29,8 +31,8 @@ export function ProductFilter({
 
   return (
     <Select value={current} onValueChange={set}>
-      <SelectTrigger className="w-56">
-        <SelectValue placeholder="Todos os produtos" />
+      <SelectTrigger className="w-full sm:w-56">
+        <SelectValue />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">Todos os produtos</SelectItem>

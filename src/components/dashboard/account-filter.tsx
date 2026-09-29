@@ -29,7 +29,7 @@ export function AccountFilter({
 
   return (
     <Select value={current} onValueChange={set}>
-      <SelectTrigger className="w-56">
+      <SelectTrigger className="w-full sm:w-56">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

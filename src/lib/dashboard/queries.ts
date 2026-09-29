@@ -119,19 +119,29 @@ const loadOfertaProductKeys = cache(
 );
 
 const loadPurchases = cache(
-  async (db: DB, range: DateRange, oferta: string = "all"): Promise<PurchaseLite[]> => {
+  async (
+    db: DB,
+    range: DateRange,
+    oferta: string = "all",
+    product: string = "all",
+  ): Promise<PurchaseLite[]> => {
     const q = scopeRange(
       db.from("purchases").select(PURCHASE_COLS).limit(CAP),
       range,
     );
     const { data } = await q;
-    const rows = (data as unknown as PurchaseLite[]) ?? [];
+    let rows = (data as unknown as PurchaseLite[]) ?? [];
     const keys = await loadOfertaProductKeys(db, oferta);
-    if (!keys) return rows;
-    return rows.filter((p) => {
-      const k = productKey(p.product_id, p.product_name);
-      return k ? keys.has(k) : false;
-    });
+    if (keys) {
+      rows = rows.filter((p) => {
+        const k = productKey(p.product_id, p.product_name);
+        return k ? keys.has(k) : false;
+      });
+    }
+    if (product && product !== "all") {
+      rows = rows.filter((p) => (p.product_name ?? "").trim() === product);
+    }
+    return rows;
   },
 );
 
@@ -191,12 +201,13 @@ export async function getOverview(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<Overview> {
   const [visitors, events, checkout, purchasesAll] = await Promise.all([
     countRows(db, "visitors", range),
     countRows(db, "events_log", range),
     loadDistinctUsers(db, range, CHECKOUT_KEY),
-    loadPurchases(db, range, oferta),
+    loadPurchases(db, range, oferta, product),
   ]);
 
   const paid = purchasesAll.filter(
@@ -234,12 +245,13 @@ export async function getFunnel(
   range: DateRange,
   oferta?: string,
   campaignKeys?: Set<string> | null,
+  product?: string,
 ): Promise<FunnelCounts> {
   const ckk = campaignKeysKeyOf(campaignKeys);
   const [pageviews, ics, rows] = await Promise.all([
     loadDistinctUsers(db, range, PAGEVIEW_KEY, ckk),
     loadDistinctUsers(db, range, CHECKOUT_KEY, ckk),
-    loadPurchases(db, range, oferta),
+    loadPurchases(db, range, oferta, product),
   ]);
 
   const salesApproved = rows.filter(
@@ -281,8 +293,9 @@ export async function getSalesStatusCounts(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<SalesStatus> {
-  const data = await loadPurchases(db, range, oferta);
+  const data = await loadPurchases(db, range, oferta, product);
   let pending = 0;
   let pendingValue = 0;
   let refunded = 0;
@@ -315,8 +328,9 @@ export async function getSalesByCountry(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<SalesGeo> {
-  const data = await loadPurchases(db, range, oferta);
+  const data = await loadPurchases(db, range, oferta, product);
   const paid = data.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
   const m = new Map<string, number>();
@@ -400,6 +414,7 @@ export async function getSalesBreakdown(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<SalesBreakdown> {
   const q = scopeRange(
     db
@@ -418,6 +433,9 @@ export async function getSalesBreakdown(
       const k = productKey(p.product_id, p.product_name);
       return k ? ofertaKeys.has(k) : false;
     });
+  }
+  if (product && product !== "all") {
+    rows = rows.filter((p) => (p.product_name ?? "").trim() === product);
   }
   const paid = rows.filter((p) => !isRefund(p.status) && !isFailedStatus(p.status) && p.value != null);
 
@@ -485,8 +503,9 @@ export async function getRevenueDaily(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<RevenueDay[]> {
-  const data = await loadPurchases(db, range, oferta);
+  const data = await loadPurchases(db, range, oferta, product);
 
   const map = new Map<string, { revenue: number; orders: number }>();
   for (const p of data) {
@@ -1089,8 +1108,9 @@ export async function getChargebackStats(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<ChargebackStats> {
-  const rows = await loadPurchases(db, range, oferta);
+  const rows = await loadPurchases(db, range, oferta, product);
   let count = 0;
   let value = 0;
   let base = 0; // aprovados + chargeback (denominador da taxa)
@@ -1129,6 +1149,7 @@ export async function getApprovalByMethod(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<ApprovalByMethod[]> {
   const q = scopeRange(
     db
@@ -1161,6 +1182,9 @@ export async function getApprovalByMethod(
       const k = productKey(p.product_id, p.product_name);
       return k ? ofertaKeys.has(k) : false;
     });
+  }
+  if (product && product !== "all") {
+    rows = rows.filter((p) => (p.product_name ?? "").trim() === product);
   }
 
   for (const p of rows) {
@@ -1203,8 +1227,9 @@ export async function getSalesByHour(
   db: DB,
   range: DateRange,
   oferta?: string,
+  product?: string,
 ): Promise<SalesByHour[]> {
-  const rows = await loadPurchases(db, range, oferta);
+  const rows = await loadPurchases(db, range, oferta, product);
   const buckets: SalesByHour[] = Array.from({ length: 24 }, (_, hour) => ({
     hour,
     count: 0,

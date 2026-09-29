@@ -364,10 +364,26 @@ function filterByOferta(rows: DemoPurchase[], oferta?: string): DemoPurchase[] {
   return rows.filter((p) => demoOfertaOf(p.product) === oferta);
 }
 
+/** Filtra compras fictícias por Produto (nome exato) — `undefined`/"all" =
+ *  sem filtro. Combinável com `filterByOferta` via `applyFilters`. */
+function filterByProduct(rows: DemoPurchase[], product?: string): DemoPurchase[] {
+  if (!product || product === "all") return rows;
+  return rows.filter((p) => p.product === product);
+}
+
+/** Aplica Oferta + Produto juntos (mesma ordem em todos os agregados). */
+function applyFilters(
+  rows: DemoPurchase[],
+  oferta?: string,
+  product?: string,
+): DemoPurchase[] {
+  return filterByProduct(filterByOferta(rows, oferta), product);
+}
+
 // ── agregados expostos ao painel ─────────────────────────────────────────────
-export function overview(range: DateRange, oferta?: string): Overview {
+export function overview(range: DateRange, oferta?: string, product?: string): Overview {
   const s = demoSet(range);
-  const paid = filterByOferta(s.paid, oferta);
+  const paid = applyFilters(s.paid, oferta, product);
   const events = eventCounts(s).reduce((sum, e) => sum + e.total, 0);
   const purchases = paid.length;
   const revenue = paid.reduce((sum, p) => sum + p.value, 0);
@@ -390,13 +406,11 @@ export function funnel(
   range: DateRange,
   oferta?: string,
   campaignKeys?: Set<string> | null,
+  product?: string,
 ): FunnelCounts {
   const s = demoSet(range);
-  const purchasesInit =
-    oferta && oferta !== "all"
-      ? s.purchases.filter((p) => demoOfertaOf(p.product) === oferta)
-      : s.purchases;
-  const paid = filterByOferta(s.paid, oferta);
+  const purchasesInit = applyFilters(s.purchases, oferta, product);
+  const paid = applyFilters(s.paid, oferta, product);
 
   // Cliques/Vis.Página/ICs não têm produto associado — aproxima pela fração de
   // pedidos que vieram das campanhas da oferta (mesma premissa usada no gasto).
@@ -417,13 +431,17 @@ export function funnel(
   };
 }
 
-export function salesStatus(range: DateRange, oferta?: string): SalesStatus {
+export function salesStatus(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): SalesStatus {
   const s = demoSet(range);
   let pending = 0;
   let pendingValue = 0;
   let refunded = 0;
   let refundedValue = 0;
-  for (const p of filterByOferta(s.purchases, oferta)) {
+  for (const p of applyFilters(s.purchases, oferta, product)) {
     if (isRefund(p.status)) {
       refunded++;
       refundedValue += p.value;
@@ -435,9 +453,13 @@ export function salesStatus(range: DateRange, oferta?: string): SalesStatus {
   return { pending, pendingValue, refunded, refundedValue };
 }
 
-export function salesByCountry(range: DateRange, oferta?: string): SalesGeo {
+export function salesByCountry(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): SalesGeo {
   const s = demoSet(range);
-  const paid = filterByOferta(s.paid, oferta);
+  const paid = applyFilters(s.paid, oferta, product);
   const m = new Map<string, number>();
   for (const p of paid) {
     m.set(p.geo.country, (m.get(p.geo.country) ?? 0) + 1);
@@ -451,13 +473,17 @@ export function salesByCountry(range: DateRange, oferta?: string): SalesGeo {
   };
 }
 
-export function salesBreakdown(range: DateRange, oferta?: string): SalesBreakdown {
+export function salesBreakdown(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): SalesBreakdown {
   const s = demoSet(range);
   const payMap = new Map<string, SalesSlice>();
   const prodMap = new Map<string, SalesSlice>();
   let totalRevenue = 0;
 
-  for (const p of filterByOferta(s.paid, oferta)) {
+  for (const p of applyFilters(s.paid, oferta, product)) {
     totalRevenue += p.value;
     const pay = payMap.get(p.payment.key) ?? {
       key: p.payment.key,
@@ -498,10 +524,14 @@ export function eventsByType(range: DateRange): EventTypeRow[] {
   }));
 }
 
-export function revenueDaily(range: DateRange, oferta?: string): RevenueDay[] {
+export function revenueDaily(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): RevenueDay[] {
   const s = demoSet(range);
   const map = new Map<string, { revenue: number; orders: number }>();
-  for (const p of filterByOferta(s.paid, oferta)) {
+  for (const p of applyFilters(s.paid, oferta, product)) {
     const cur = map.get(p.day) ?? { revenue: 0, orders: 0 };
     cur.revenue += p.value;
     cur.orders += 1;
@@ -529,9 +559,13 @@ export function faturamento(range: DateRange): Faturamento {
 
 const isChargeback = (s: string) => /chargeback|dispute/i.test(s);
 
-export function chargebackStats(range: DateRange, oferta?: string): ChargebackStats {
+export function chargebackStats(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): ChargebackStats {
   const s = demoSet(range);
-  const rows = filterByOferta(s.purchases, oferta);
+  const rows = applyFilters(s.purchases, oferta, product);
   const cb = rows.filter((p) => isChargeback(p.status));
   const base = rows.filter(
     (p) => isChargeback(p.status) || !isRefund(p.status),
@@ -551,9 +585,13 @@ const DEMO_APPROVAL_RATE: Record<string, number> = {
   boleto: 0.83,
 };
 
-export function approvalByMethod(range: DateRange, oferta?: string): ApprovalByMethod[] {
+export function approvalByMethod(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): ApprovalByMethod[] {
   const s = demoSet(range);
-  const paid = filterByOferta(s.paid, oferta);
+  const paid = applyFilters(s.paid, oferta, product);
   return PAYMENTS.filter((p) => p.key !== "outros").map((p) => {
     const approved = paid.filter((x) => x.payment.key === p.key).length;
     const rate = DEMO_APPROVAL_RATE[p.key] ?? 0.9;
@@ -568,14 +606,18 @@ const SP_HOUR_FMT = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-export function salesByHour(range: DateRange, oferta?: string): SalesByHour[] {
+export function salesByHour(
+  range: DateRange,
+  oferta?: string,
+  product?: string,
+): SalesByHour[] {
   const s = demoSet(range);
   const buckets: SalesByHour[] = Array.from({ length: 24 }, (_, hour) => ({
     hour,
     count: 0,
     revenue: 0,
   }));
-  for (const p of filterByOferta(s.paid, oferta)) {
+  for (const p of applyFilters(s.paid, oferta, product)) {
     const h = Number(SP_HOUR_FMT.format(new Date(p.created_at))) % 24;
     buckets[h].count += 1;
     buckets[h].revenue += p.value;

@@ -2,6 +2,7 @@
 
 import { GripVertical, LayoutGrid, RotateCcw, Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,21 @@ export function DashboardCustomizer({
   );
   const [editing, setEditing] = useState(false);
   const dragRef = useRef<{ section: string; id: string } | null>(null);
+  // Botão "Personalizar" mora no header global (barrinha do alternador de
+  // tema), fora da árvore desta página — usamos um portal pro elemento com
+  // esse id, criado pelo `PanelShell`. Só existe no navegador, por isso o
+  // estado começa `null` e é preenchido depois de montar.
+  const [personalizarSlot, setPersonalizarSlot] = useState<HTMLElement | null>(
+    null,
+  );
+
+  useEffect(() => {
+    // O elemento só existe no DOM do navegador (renderizado pelo
+    // `PanelShell`) — ler e sincronizar depois de montar é o caso correto
+    // aqui, mesmo que a regra normalmente desencoraje setState em efeito.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPersonalizarSlot(document.getElementById("dashboard-personalizar-slot"));
+  }, []);
 
   useEffect(() => {
     try {
@@ -124,44 +140,48 @@ export function DashboardCustomizer({
     persist({ ...orders, [sectionId]: nextOrder });
   }
 
+  // Botão só-ícone que mora no header global, ao lado do alternador de
+  // tema — o usuário já sabe pra que serve, por isso sem rótulo.
+  const personalizarButton = (
+    <Button
+      type="button"
+      variant={editing ? "secondary" : "ghost"}
+      size="icon"
+      onClick={() => setEditing((e) => !e)}
+      aria-label={editing ? "Sair do modo personalizar" : "Personalizar"}
+      title="Personalizar"
+    >
+      <Settings2 className="size-4" />
+    </Button>
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-        {editing ? (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => persist(defaultOrders(sections))}
-              className="gap-1.5 text-muted-foreground"
-            >
-              <RotateCcw className="size-3.5" />
-              Restaurar padrão
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setEditing(false)}
-              className="gap-1.5"
-            >
-              <LayoutGrid className="size-3.5" />
-              Concluir
-            </Button>
-          </>
-        ) : (
+      {personalizarSlot ? createPortal(personalizarButton, personalizarSlot) : null}
+
+      {editing ? (
+        <div className="flex items-center justify-end gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => setEditing(true)}
+            onClick={() => persist(defaultOrders(sections))}
+            className="gap-1.5 text-muted-foreground"
+          >
+            <RotateCcw className="size-3.5" />
+            Restaurar padrão
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setEditing(false)}
             className="gap-1.5"
           >
-            <Settings2 className="size-3.5" />
-            Personalizar
+            <LayoutGrid className="size-3.5" />
+            Concluir
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {editing ? (
         <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">

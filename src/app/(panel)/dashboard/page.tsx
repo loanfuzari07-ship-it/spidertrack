@@ -1,12 +1,12 @@
-import { PageHeader } from "@/components/panel/page-header";
 import { AccountFilter } from "@/components/dashboard/account-filter";
 import { ApprovalPanel } from "@/components/dashboard/approval-panel";
 import { PaymentDonut, RevenueChart, SalesByHourChart } from "@/components/dashboard/charts";
 import { Funnel } from "@/components/dashboard/funnel";
 import { OfertaFilter } from "@/components/dashboard/oferta-filter";
+import { ProductFilter } from "@/components/dashboard/product-filter";
 import { SalesMap } from "@/components/dashboard/sales-map";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
-import { RefreshBar } from "@/components/dashboard/refresh-bar";
+import { RefreshBar, refreshTimeAgoLabel } from "@/components/dashboard/refresh-bar";
 import { StatCard } from "@/components/dashboard/stat-card";
 import {
   DashboardCustomizer,
@@ -28,6 +28,7 @@ import {
   getFunnel,
   getOfertaMaps,
   getOverview,
+  getProductOptions,
   getRevenueDaily,
   getSalesBreakdown,
   getSalesByCountry,
@@ -54,12 +55,14 @@ export default async function OverviewPage({
     to?: string;
     account?: string;
     oferta?: string;
+    product?: string;
   }>;
 }) {
   const sp = await searchParams;
   const range = parseRange(sp.range, sp.from, sp.to);
   const accountParam = sp.account ?? "all";
   const ofertaParam = sp.oferta ?? "all";
+  const productParam = sp.product ?? "all";
   const src = await getSource();
 
   const accounts = src.admin
@@ -75,6 +78,7 @@ export default async function OverviewPage({
   const ofertaOptions = [...new Set(ofertaMaps.revenue.keys())].sort((a, b) =>
     a.localeCompare(b),
   );
+  const productOptions = await getProductOptions(src, range);
   const campaignKeysForOferta =
     ofertaParam !== "all"
       ? new Set(
@@ -99,18 +103,18 @@ export default async function OverviewPage({
     salesHour,
     finance,
   ] = await Promise.all([
-    getOverview(src, range, ofertaParam),
-    getRevenueDaily(src, range, ofertaParam),
-    getSalesByCountry(src, range, ofertaParam),
+    getOverview(src, range, ofertaParam, productParam),
+    getRevenueDaily(src, range, ofertaParam, productParam),
+    getSalesByCountry(src, range, ofertaParam, productParam),
     getTotalSpend(src, range, accountParam, campaignKeysForOferta),
     getDailySpendMap(src, range, accountParam, campaignKeysForOferta),
-    getSalesBreakdown(src, range, ofertaParam),
-    getSalesStatusCounts(src, range, ofertaParam),
-    getFunnel(src, range, ofertaParam, campaignKeysForOferta),
+    getSalesBreakdown(src, range, ofertaParam, productParam),
+    getSalesStatusCounts(src, range, ofertaParam, productParam),
+    getFunnel(src, range, ofertaParam, campaignKeysForOferta, productParam),
     getTotalClicks(src, range, accountParam, campaignKeysForOferta),
-    getChargebackStats(src, range, ofertaParam),
-    getApprovalByMethod(src, range, ofertaParam),
-    getSalesByHour(src, range, ofertaParam),
+    getChargebackStats(src, range, ofertaParam, productParam),
+    getApprovalByMethod(src, range, ofertaParam, productParam),
+    getSalesByHour(src, range, ofertaParam, productParam),
     getFinanceSettings(src),
   ]);
 
@@ -437,18 +441,46 @@ export default async function OverviewPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Visão geral"
-        action={
-          <RefreshBar fetchedAt={spend.fetchedAt} action={refreshOverview} />
-        }
-      />
+      {/* Cabeçalho + filtros dentro de um único cartão (mesmo cinza dos
+          cartões de KPI) — inspirado na UTMify, mantendo nossos próprios
+          filtros (nada de "período de visualização" etc.), só acrescentando
+          o filtro de Produto. */}
+      <Card>
+        <CardContent className="space-y-4 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight">Visão geral</h1>
+              {/* No mobile o texto fica embaixo do título (igual UTMify); a
+                  partir do "sm" ele volta a ficar do lado do botão. */}
+              <p className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                {refreshTimeAgoLabel(spend.fetchedAt)}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {refreshTimeAgoLabel(spend.fetchedAt)}
+              </span>
+              <RefreshBar
+                fetchedAt={spend.fetchedAt}
+                action={refreshOverview}
+                showLabel={false}
+              />
+            </div>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <PeriodSelector current={range.key} />
-        <AccountFilter current={accountParam} accounts={accounts} />
-        <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
-      </div>
+          {/* Divisorzinho sutil entre o título e os filtros. */}
+          <div className="border-t border-border/60" />
+
+          {/* Mobile: grade 2×2 (Período+Conta na 1ª linha, Oferta+Produto na
+              2ª). A partir do "sm" volta a ser uma linha só, com quebra. */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+            <PeriodSelector current={range.key} />
+            <AccountFilter current={accountParam} accounts={accounts} />
+            <OfertaFilter current={ofertaParam} ofertas={ofertaOptions} />
+            <ProductFilter current={productParam} products={productOptions} />
+          </div>
+        </CardContent>
+      </Card>
 
       <DashboardCustomizer
         sections={sections}

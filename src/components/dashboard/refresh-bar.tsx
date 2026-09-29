@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toaster";
 
 /** "agora mesmo" / "há 1 min" / "há 12 min" a partir de um timestamp (ms). Sem
- *  conta de anúncio ativa (`fetchedAt` nulo) explica por que não há hora. */
-function timeAgoLabel(fetchedAt: number | null): string {
+ *  conta de anúncio ativa (`fetchedAt` nulo) explica por que não há hora.
+ *  Exportada pra telas que precisam posicionar o texto em outro lugar (ex.:
+ *  embaixo do título no mobile, em vez de do lado do botão). */
+export function refreshTimeAgoLabel(fetchedAt: number | null): string {
   if (fetchedAt == null) return "Sem conta de anúncio ativa pra atualizar";
   const minutes = Math.max(0, Math.round((Date.now() - fetchedAt) / 60_000));
   if (minutes < 1) return "Atualizado agora mesmo";
@@ -24,10 +26,14 @@ function timeAgoLabel(fetchedAt: number | null): string {
 export function RefreshBar({
   fetchedAt,
   action,
+  showLabel = true,
 }: {
   /** `null` quando não há nenhuma conta de anúncio ativa ainda. */
   fetchedAt: number | null;
   action: () => Promise<void>;
+  /** `false` quando a tela já mostra "Atualizado há X min" em outro lugar
+   *  (ex.: embaixo do título no mobile) — aí só o botão é renderizado aqui. */
+  showLabel?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -43,10 +49,12 @@ export function RefreshBar({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <span className="text-xs text-muted-foreground">
-        {timeAgoLabel(fetchedAt)}
-      </span>
+    <div className="flex items-center gap-3">
+      {showLabel ? (
+        <span className="text-xs text-muted-foreground">
+          {refreshTimeAgoLabel(fetchedAt)}
+        </span>
+      ) : null}
       <Button
         type="button"
         size="sm"
