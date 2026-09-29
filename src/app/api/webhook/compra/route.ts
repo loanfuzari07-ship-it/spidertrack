@@ -50,6 +50,22 @@ interface Visitor {
   utm_content: string | null;
 }
 
+/**
+ * A Digistore24 (e outras plataformas de IPN "clássico") só considera a
+ * entrega bem-sucedida se o CORPO da resposta for literalmente o texto "OK"
+ * — não aceita JSON. Sem isso, ela fica retentando a mesma notificação várias
+ * vezes achando que falhou. Detectamos pelo Content-Type da REQUISIÇÃO (só
+ * quem manda form-urlencoded, como a Digistore24, recebe "OK" puro; quem já
+ * manda JSON continua recebendo JSON, sem mudar nada pra eles).
+ */
+function okResponse(data: Record<string, unknown>, plainOk: boolean): Response {
+  if (!plainOk) return jsonResponse(data);
+  return new Response("OK", {
+    status: 200,
+    headers: { "content-type": "text/plain", "cache-control": "no-store" },
+  });
+}
+
 function tokenMatches(a: string, b: string): boolean {
   const ba = Buffer.from(a);
   const bb = Buffer.from(b);
@@ -102,9 +118,13 @@ export async function POST(req: Request) {
   // form-encoded — assim nenhuma plataforma nova quebra por causa disso.
   const contentType = req.headers.get("content-type") ?? "";
   let raw: unknown;
+  // true quando o corpo era (ou caiu pra) form-urlencoded — nesse caso a
+  // resposta final tem que ser o texto puro "OK" (ver `okResponse` acima).
+  let plainOk = false;
   try {
     if (contentType.includes("application/x-www-form-urlencoded")) {
       raw = Object.fromEntries(new URLSearchParams(await req.text()));
+      plainOk = true;
     } else if (contentType.includes("application/json")) {
       raw = await req.json();
     } else {
@@ -113,6 +133,7 @@ export async function POST(req: Request) {
         raw = JSON.parse(text);
       } catch {
         raw = Object.fromEntries(new URLSearchParams(text));
+        plainOk = true;
       }
     }
   } catch {
@@ -256,14 +277,17 @@ export async function POST(req: Request) {
 
   if (!willDispatch) {
     await upsertEvent();
-    return jsonResponse({
-      ok: true,
-      transaction_id: norm.transaction_id,
-      matched: Boolean(visitor),
-      match_reason: matchReason,
-      dispatched: false,
-      reason: alreadyDispatched ? "already_dispatched" : "status",
-    });
+    return okResponse(
+      {
+        ok: true,
+        transaction_id: norm.transaction_id,
+        matched: Boolean(visitor),
+        match_reason: matchReason,
+        dispatched: false,
+        reason: alreadyDispatched ? "already_dispatched" : "status",
+      },
+      plainOk,
+    );
   }
 
   // ── Purchase para Meta (todos os pixels) e GA4 MP (todas as propriedades) ──
@@ -397,14 +421,17 @@ export async function POST(req: Request) {
     }
   });
 
-  return jsonResponse({
-    ok: true,
-    transaction_id: norm.transaction_id,
-    matched: Boolean(visitor),
-    match_reason: matchReason,
-    dispatched: true,
-    meta_skipped: !sendMeta,
-    meta_destinos: meta.results.length,
-    ga4_destinos: ga4Results.length,
-  });
+  return okResponse(
+    {
+      ok: true,
+      transaction_id: norm.transaction_id,
+      matched: Boolean(visitor),
+      match_reason: matchReason,
+      dispatched: true,
+      meta_skipped: !sendMeta,
+      meta_destinos: meta.results.length,
+      ga4_destinos: ga4Results.length,
+    },
+    plainOk,
+  );
 }
