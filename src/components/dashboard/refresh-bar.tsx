@@ -4,18 +4,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toaster";
-
-/** "agora mesmo" / "há 1 min" / "há 12 min" a partir de um timestamp (ms). Sem
- *  conta de anúncio ativa (`fetchedAt` nulo) explica por que não há hora.
- *  Exportada pra telas que precisam posicionar o texto em outro lugar (ex.:
- *  embaixo do título no mobile, em vez de do lado do botão). */
-export function refreshTimeAgoLabel(fetchedAt: number | null): string {
-  if (fetchedAt == null) return "Sem conta de anúncio ativa pra atualizar";
-  const minutes = Math.max(0, Math.round((Date.now() - fetchedAt) / 60_000));
-  if (minutes < 1) return "Atualizado agora mesmo";
-  if (minutes === 1) return "Atualizado há 1 min";
-  return `Atualizado há ${minutes} min`;
-}
+import { refreshTimeAgoLabel } from "@/lib/dashboard/refresh-label";
 
 /**
  * Indicador "Atualizado há X min" + botão "Atualizar" que dispara uma Server

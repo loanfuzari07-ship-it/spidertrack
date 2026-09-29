@@ -6,7 +6,8 @@ import { OfertaFilter } from "@/components/dashboard/oferta-filter";
 import { ProductFilter } from "@/components/dashboard/product-filter";
 import { SalesMap } from "@/components/dashboard/sales-map";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
-import { RefreshBar, refreshTimeAgoLabel } from "@/components/dashboard/refresh-bar";
+import { RefreshBar } from "@/components/dashboard/refresh-bar";
+import { refreshTimeAgoLabel } from "@/lib/dashboard/refresh-label";
 import { StatCard } from "@/components/dashboard/stat-card";
 import {
   DashboardCustomizer,
