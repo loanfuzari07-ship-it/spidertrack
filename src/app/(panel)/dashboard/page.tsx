@@ -191,55 +191,6 @@ export default async function OverviewPage({
         />
       ),
     },
-    {
-      id: "chargeback",
-      title: "Chargeback",
-      node: (
-        <StatCard
-          label="Chargeback"
-          value={formatPercent(chargeback.rate)}
-          hint={
-            chargeback.count > 0
-              ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
-              : "sem casos no período"
-          }
-          valueClassName={chargeback.rate > 0.02 ? "text-destructive" : undefined}
-        />
-      ),
-    },
-    {
-      id: "vendas-pendentes",
-      title: "Vendas pendentes",
-      node: (
-        <StatCard
-          label="Vendas pendentes"
-          value={formatCurrency(salesStatus.pendingValue)}
-          hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
-        />
-      ),
-    },
-    {
-      id: "vendas-reembolsadas",
-      title: "Vendas reembolsadas",
-      node: (
-        <StatCard
-          label="Vendas reembolsadas"
-          value={formatPercent(refundRate)}
-          hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
-        />
-      ),
-    },
-    {
-      id: "imposto-meta",
-      title: "Imposto Meta Ads",
-      node: (
-        <StatCard
-          label="Imposto Meta Ads"
-          value={formatCurrency(impostoMetaAds)}
-          hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
-        />
-      ),
-    },
   ];
 
   // Cartões maiores (funil, mapa, listas, gráficos). Os 4 "lg" ficam juntos
@@ -248,74 +199,101 @@ export default async function OverviewPage({
   // branco, em qualquer ordem que o usuário arrastar DENTRO deste grupo.
   const contentBlocks: DashboardBlock[] = [
     {
-      id: "spiderflow",
+      // Funil grande à esquerda (mesma altura das 3 linhas de cartões à
+      // direita) + uma grade 2×3 de métricas secundárias — um único bloco
+      // "full", já que a proporção interna (funil alto + grade fina) só faz
+      // sentido junta; os 6 cartõezinhos não são arrastáveis à parte.
+      id: "spiderflow-hero",
       title: "SpiderFlow — funil de conversão",
-      span: "lg",
+      span: "full",
       node: (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Spider<span className="text-primary">Flow</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Funnel
-              clicks={clicks.clicks}
-              pageviews={funnel.pageviews}
-              ics={funnel.ics}
-              salesInit={funnel.salesInit}
-              salesApproved={funnel.salesApproved}
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="flex h-full flex-col">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                Spider<span className="text-primary">Flow</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col justify-center pt-0">
+              <Funnel
+                clicks={clicks.clicks}
+                pageviews={funnel.pageviews}
+                ics={funnel.ics}
+                salesInit={funnel.salesInit}
+                salesApproved={funnel.salesApproved}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Linha 1 */}
+            <Card className="flex min-w-0 flex-col">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  ARPU
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+                <div
+                  title={arpu != null ? formatCurrency(arpu) : "N/A"}
+                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
+                >
+                  {arpu != null ? formatCurrency(arpu) : "N/A"}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  receita ÷ pedidos aprovados
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="flex min-w-0 flex-col">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  CPA médio
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
+                <div
+                  title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+                  className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-lg font-semibold leading-tight tabular-nums"
+                >
+                  {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  investimento ÷ pedidos aprovados
+                </p>
+              </CardContent>
+            </Card>
+            {/* Linha 2 */}
+            <StatCard
+              label="Vendas pendentes"
+              value={formatCurrency(salesStatus.pendingValue)}
+              hint={`${formatNumber(salesStatus.pending)} venda(s) aguardando`}
             />
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
-      id: "arpu",
-      title: "ARPU",
-      node: (
-        <Card className="flex min-w-0 flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ARPU
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
-            <div
-              title={arpu != null ? formatCurrency(arpu) : "N/A"}
-              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-            >
-              {arpu != null ? formatCurrency(arpu) : "N/A"}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              receita ÷ pedidos aprovados
-            </p>
-          </CardContent>
-        </Card>
-      ),
-    },
-    {
-      id: "cpa",
-      title: "CPA médio",
-      node: (
-        <Card className="flex min-w-0 flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              CPA médio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex min-w-0 flex-1 flex-col justify-center">
-            <div
-              title={cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-              className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[clamp(1rem,0.7rem+1.6vw,1.875rem)] font-semibold leading-tight tabular-nums"
-            >
-              {cpaGeral != null ? formatCurrency(cpaGeral) : "N/A"}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              investimento ÷ pedidos aprovados
-            </p>
-          </CardContent>
-        </Card>
+            <StatCard
+              label="Vendas reembolsadas"
+              value={formatPercent(refundRate)}
+              hint={`${formatNumber(salesStatus.refunded)} venda(s) · ${formatCurrency(salesStatus.refundedValue)} devolvidos`}
+            />
+            {/* Linha 3 */}
+            <StatCard
+              label="Chargeback"
+              value={formatPercent(chargeback.rate)}
+              hint={
+                chargeback.count > 0
+                  ? `${formatNumber(chargeback.count)} caso(s) · ${formatCurrency(chargeback.value)}`
+                  : "sem casos no período"
+              }
+              valueClassName={
+                chargeback.rate > 0.02 ? "text-destructive" : undefined
+              }
+            />
+            <StatCard
+              label="Imposto Meta Ads"
+              value={formatCurrency(impostoMetaAds)}
+              hint={`${(finance.metaAdsTaxRate * 100).toFixed(1)}% do investimento`}
+            />
+          </div>
+        </div>
       ),
     },
     {

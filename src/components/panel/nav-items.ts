@@ -32,13 +32,13 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Resumo", icon: LayoutDashboard },
       { href: "/dashboard/vendas", label: "Vendas", icon: Wallet },
+      { href: "/dashboard/ofertas", label: "Ofertas", icon: Tag },
     ],
   },
   {
     label: "Rastreamento",
     items: [
       { href: "/dashboard/campanhas", label: "Campanhas", icon: Megaphone },
-      { href: "/dashboard/ofertas", label: "Ofertas", icon: Tag },
       { href: "/dashboard/pixel-spider", label: "Pixel Spider", icon: Layers },
       { href: "/dashboard/utms", label: "UTMs", icon: Link2 },
       { href: "/dashboard/eventos", label: "Eventos", icon: ListChecks },
