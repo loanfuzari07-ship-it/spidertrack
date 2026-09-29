@@ -21,6 +21,13 @@ export const dynamic = "force-dynamic";
  * quanto um pixel "global" que deva rodar em todas as páginas mesmo com
  * outros produtos tendo pixel próprio. Sem `?domain=` (script antigo em cache,
  * por ex.), devolve tudo — comportamento anterior, sem quebrar nada.
+ *
+ * Domínio cadastrado = raiz, e cobre TODOS os subdomínios dela (ex.: cadastrar
+ * "meuproduto.com" bate com "chat.meuproduto.com", "obrigado.meuproduto.com"
+ * etc.) — é comum um produto ter cada etapa do funil num subdomínio diferente
+ * (funil de chat, checkout, página de obrigado…), e sem isso a pessoa teria
+ * que descobrir e cadastrar cada subdomínio um por um. Continua batendo igual
+ * se a pessoa cadastrar o subdomínio exato também.
  */
 export async function GET(req: NextRequest) {
   // Sem Supabase não há contas cadastradas — o snippet só não carrega nada.
@@ -37,8 +44,11 @@ export async function GET(req: NextRequest) {
     admin.from("meta_pixels").select("pixel_id, domain").eq("is_active", true),
   ]);
 
-  const matches = (rowDomain: string | null) =>
-    !domain || !rowDomain || rowDomain.toLowerCase() === domain;
+  const matches = (rowDomain: string | null) => {
+    if (!domain || !rowDomain) return true;
+    const root = rowDomain.toLowerCase();
+    return domain === root || domain.endsWith(`.${root}`);
+  };
 
   return jsonResponse({
     ga4: (ga4.data ?? [])

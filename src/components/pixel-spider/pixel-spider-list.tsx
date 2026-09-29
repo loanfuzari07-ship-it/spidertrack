@@ -267,7 +267,10 @@ function PixelSpiderDialog({ item }: { item?: PixelSpiderRow }) {
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              Se você só tem um produto/domínio, pode deixar em branco.
+              Coloque só o domínio raiz (sem &ldquo;chat.&rdquo;,
+              &ldquo;obrigado.&rdquo; etc.) — vale automaticamente pra
+              qualquer subdomínio dele. Se você só tem um produto/domínio,
+              pode deixar em branco.
             </p>
           </div>
 
