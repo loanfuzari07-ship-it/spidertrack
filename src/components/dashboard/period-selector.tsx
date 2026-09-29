@@ -46,8 +46,10 @@ export function PeriodSelector({ current }: { current: RangeKey }) {
 
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
+  // "text-base" (16px) no mobile evita o zoom automático do Safari ao focar
+  // o campo de data — abaixo de 16px ele dá zoom sozinho ao tocar.
   const inputCls =
-    "rounded border border-border/70 bg-card/40 px-2 py-1 text-xs text-foreground";
+    "rounded border border-border/70 bg-card/40 px-2 py-1 text-base text-foreground sm:text-xs";
 
   return (
     <div className="flex flex-wrap items-center gap-2">

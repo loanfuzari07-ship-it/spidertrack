@@ -21,17 +21,41 @@ export function formatCurrency(
   }).format(n ?? 0);
 }
 
-/** Moeda compacta: R$36,9K / R$1,2M — usado em placares e metas. */
+/** Moeda compacta: R$ 36,9 mil / R$ 1,2 mi — usado em placares e metas.
+ *  Implementado "na mão" (sem `notation: "compact"` do Intl) de propósito:
+ *  a notação compacta do Intl usa tabelas de arredondamento (CLDR) que podem
+ *  divergir entre o Node do servidor e o motor do navegador — o mesmo número
+ *  virava "R$ 3 mi" num lado e "R$ 3,0 mi" no outro, gerando um erro de
+ *  hidratação (o React descartava e re-renderizava a árvore). Dividir e
+ *  arredondar o número à mão usa só matemática comum, igual nos dois lados. */
 export function formatCurrencyCompact(
   n: number | null | undefined,
   currency = "BRL",
 ): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency,
-    notation: "compact",
+  const value = n ?? 0;
+  const abs = Math.abs(value);
+  const symbol = currency === "BRL" ? "R$" : currency;
+
+  let divided = value;
+  let suffix = "";
+  if (abs >= 1_000_000_000) {
+    divided = value / 1_000_000_000;
+    suffix = " bi";
+  } else if (abs >= 1_000_000) {
+    divided = value / 1_000_000;
+    suffix = " mi";
+  } else if (abs >= 1_000) {
+    divided = value / 1_000;
+    suffix = " mil";
+  } else {
+    return formatCurrency(value, currency);
+  }
+
+  const numberPart = divided.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 1,
-  }).format(n ?? 0);
+  });
+  return `${symbol} ${numberPart}${suffix}`;
 }
 
 /** ratio já em fração (0.23 → "23,0%"). */

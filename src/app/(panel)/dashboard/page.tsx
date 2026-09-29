@@ -213,7 +213,12 @@ export default async function OverviewPage({
       span: "full",
       node: (
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          <Card className="flex h-full flex-col">
+          {/* Abaixo do "lg" essa grade vira 1 coluna só (funil e cartões
+              empilhados) — sem uma 2ª coluna pra "esticar contra", o cartão
+              do funil perdia a altura (ficava com 0px, funil sumia). Altura
+              fixa resolve nesse caso; do "lg" pra cima volta a acompanhar a
+              altura da grade de cartões ao lado (h-full + items-stretch). */}
+          <Card className="flex h-64 flex-col lg:h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
                 Spider<span className="text-primary">Flow</span>

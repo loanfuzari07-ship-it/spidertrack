@@ -37,7 +37,11 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-y-0 z-50 flex w-72 max-w-[85%] flex-col gap-2 border-border bg-card p-4 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-300",
+        // "overflow-y-auto": o painel é "fixed" (altura = viewport inteira);
+        // sem isso, conteúdo que passa da altura da tela (menu + placar de
+        // metas + usuário, num celular baixo ou com teclado aberto) ficava
+        // cortado e sem jeito de rolar até o resto.
+        "fixed inset-y-0 z-50 flex w-72 max-w-[85%] flex-col gap-2 overflow-y-auto border-border bg-card p-4 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-300",
         side === "left" &&
           "left-0 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
         side === "right" &&

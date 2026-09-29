@@ -4,6 +4,7 @@ import { FlaskConical, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { signOut } from "@/app/(panel)/actions";
+import { PwaInstallButton } from "@/components/pwa-install-button";
 import { RevenueGoalWidget } from "@/components/panel/revenue-goal-widget";
 import { SidebarNav } from "@/components/panel/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -239,6 +240,7 @@ export function PanelShell({
                 do alternador de tema — pedido do usuário. Fica vazio nas
                 páginas que não usam customização de grade. */}
             <div id="dashboard-personalizar-slot" className="contents" />
+            <PwaInstallButton variant="ghost" size="icon" iconOnly />
             <ThemeToggle />
             {demo ? null : (
               <div className="hidden md:block">

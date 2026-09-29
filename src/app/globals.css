@@ -57,7 +57,10 @@
   --background: 224 14% 4%;
   --foreground: 210 12% 93%;
 
-  --card: 222 12% 7%;
+  /* Mais clara que o fundo (4%) pra dar contraste real ao cartão — com 7%
+     ficava quase imperceptível, sobretudo no "glass" (que ainda mistura com
+     transparência) em telas de celular. */
+  --card: 222 12% 12%;
   --card-foreground: 210 12% 93%;
 
   --popover: 224 13% 6%;
@@ -160,10 +163,14 @@
 }
 
 @layer utilities {
-  /* Cartão "glass" com leve blur. Sem contorno: o cartão se separa do fundo
-     pelo próprio blur e pela sombra do componente Card. */
+  /* Cartão "glass" com leve blur. A opacidade mais alta (era 0.6) é pra dar
+     contraste de verdade contra o fundo quase preto — com 0.6 o cartão ficava
+     "lavado", quase impossível de distinguir do fundo (bem visível no
+     celular). Borda sutil ajuda a fechar o contorno onde o blur sozinho não
+     é suficiente (fundos sem nada atrás, como no topo da página). */
   .glass {
-    background-color: hsl(var(--card) / 0.6);
+    background-color: hsl(var(--card) / 0.85);
+    border: 1px solid hsl(var(--border) / 0.8);
     backdrop-filter: blur(12px) saturate(140%);
     -webkit-backdrop-filter: blur(12px) saturate(140%);
   }
