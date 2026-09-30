@@ -457,10 +457,25 @@ export async function discoverAdAccounts(
       const res: Response = await fetch(next);
       const json = await res.json();
       if (!res.ok) {
+        const err = json?.error as
+          | {
+              message?: string;
+              error_user_msg?: string;
+              code?: number;
+              error_subcode?: number;
+            }
+          | undefined;
+        const detail = err?.error_user_msg ?? err?.message ?? `HTTP ${res.status}`;
+        // Inclui o código do erro do Meta na mensagem: ajuda a diferenciar um
+        // problema temporário (rate limit) de um bloqueio de conta/token —
+        // cada código tem uma causa e resolução diferentes do lado do Meta.
+        const code = err?.code
+          ? ` (código ${err.code}${err.error_subcode ? "/" + err.error_subcode : ""})`
+          : "";
         return {
           ok: false,
           accounts,
-          error: json?.error?.message ?? `HTTP ${res.status}`,
+          error: `${detail}${code}`,
         };
       }
       for (const d of json.data ?? []) {
