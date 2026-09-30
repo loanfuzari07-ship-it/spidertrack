@@ -55,6 +55,8 @@ export interface ManagerRow {
   videoThruplays: number;
   /** Checkouts iniciados atribuídos por UTM (webhook / eventos). */
   checkouts: number;
+  /** Visualizações de página (PageView) atribuídas por UTM (eventos). */
+  pageviews: number;
 }
 
 type Level = "campaigns" | "adsets" | "ads";
@@ -153,9 +155,6 @@ export function CampaignsManager({
   const [pending, startTransition] = useTransition();
 
   // diálogos
-  const [confirm, setConfirm] = useState<{ row: ManagerRow; next: boolean } | null>(
-    null,
-  );
   const [editing, setEditing] = useState<ManagerRow | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [assistRow, setAssistRow] = useState<ManagerRow | null>(null);
@@ -286,6 +285,8 @@ export function CampaignsManager({
               <TableHead className="text-right">ARPU</TableHead>
               <TableHead className="text-right">ROAS</TableHead>
               <TableHead className="text-right">Assist.</TableHead>
+              <TableHead className="text-right">Visualizações</TableHead>
+              <TableHead className="text-right">Cliques no link</TableHead>
               <TableHead className="text-right">IC</TableHead>
               <TableHead className="text-right">CPI</TableHead>
               <TableHead className="text-right">CPC</TableHead>
@@ -299,7 +300,7 @@ export function CampaignsManager({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={18}
+                  colSpan={20}
                   className="py-10 text-center text-sm text-muted-foreground"
                 >
                   Nada aqui no período/seleção.
@@ -333,7 +334,7 @@ export function CampaignsManager({
                         checked={isActive(r)}
                         disabled={pending}
                         aria-label={isActive(r) ? "Pausar" : "Ativar"}
-                        onCheckedChange={(next) => setConfirm({ row: r, next })}
+                        onCheckedChange={(next) => doToggle(r, next)}
                       />
                     </TableCell>
                     <TableCell className="max-w-[280px]">
@@ -432,6 +433,12 @@ export function CampaignsManager({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {formatNumber(r.pageviews)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {formatNumber(r.clicks)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
                       {formatNumber(r.checkouts)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
@@ -523,36 +530,6 @@ export function CampaignsManager({
           </div>
         </div>
       ) : null}
-
-      {/* Confirmação de ativar/pausar */}
-      <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {confirm?.next ? "Ativar" : "Pausar"} no Meta?
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Isso altera o status <strong>ao vivo</strong> de “{confirm?.row.name}
-            ”. Confirmar?
-          </p>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              disabled={pending}
-              onClick={() => {
-                if (confirm) doToggle(confirm.row, confirm.next);
-                setConfirm(null);
-              }}
-            >
-              {confirm?.next ? "Ativar" : "Pausar"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Editar orçamento */}
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>

@@ -1009,6 +1009,9 @@ export function campaigns(range: DateRange): DemoCampaigns {
     const clicks = Math.round(impressions * ctr);
     // Checkouts iniciados: sempre >= pedidos pagos (parte não converte).
     const checkouts = agg.orders + Math.round(agg.orders * between(rnd, 0.6, 2.2));
+    // Visualizações de página: perto dos cliques no link (alguém pode recarregar,
+    // ou o clique não completar o carregamento — por isso não é exatamente igual).
+    const pageviews = Math.round(clicks * between(rnd, 0.85, 1.15));
     return {
       id,
       name,
@@ -1029,6 +1032,7 @@ export function campaigns(range: DateRange): DemoCampaigns {
       videoPlays,
       videoThruplays,
       checkouts,
+      pageviews,
       ...extra,
     };
   };

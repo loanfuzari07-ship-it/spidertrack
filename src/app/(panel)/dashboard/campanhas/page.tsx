@@ -15,6 +15,7 @@ import { getSource, type Source } from "@/lib/dashboard/data";
 import {
   getRevenueUtmMaps,
   getCheckoutUtmMaps,
+  getPageviewUtmMaps,
   type CheckoutUtmMaps,
   type RevenueUtmMaps,
   type UtmAgg,
@@ -29,6 +30,7 @@ import {
   getAdSets,
   getCampaigns,
   getInsights,
+  mapAccountsSequential,
 } from "@/lib/dispatch/meta-ads";
 import { refreshInsights } from "./actions";
 
@@ -84,20 +86,26 @@ async function loadCampaigns(
     new Date(new Date(range.to).getTime() - 90 * 86400_000).toISOString()
   ).slice(0, 10);
 
-  const [perAccount, rev, checkoutMaps, settingsRes] = await Promise.all([
-    Promise.all(
-      selected.map(async (a) => {
-        const [campaigns, adsets, ads, insights] = await Promise.all([
-          getCampaigns(a.ad_account_id, a.token),
-          getAdSets(a.ad_account_id, a.token),
-          getAds(a.ad_account_id, a.token),
-          getInsights(a.ad_account_id, a.token, since, until),
-        ]);
-        return { account: a, campaigns, adsets, ads, insights };
-      }),
-    ),
+  // Contas diferentes costumam compartilhar o MESMO token (um System User dá
+  // acesso a várias contas) — por isso as contas são buscadas uma de cada vez
+  // (`mapAccountsSequential`), não em paralelo: senão "Todas as contas" dispara
+  // chamadas simultâneas ao Graph API que estouram o limite de concorrência do
+  // Meta (erro #613 — "concurrent request limit"). Dentro de UMA conta, os 4
+  // pedidos (campanhas/conjuntos/anúncios/insights) continuam em paralelo — são
+  // endpoints diferentes, não competem entre si do mesmo jeito.
+  const [perAccount, rev, checkoutMaps, pageviewMaps, settingsRes] = await Promise.all([
+    mapAccountsSequential(selected, async (a) => {
+      const [campaigns, adsets, ads, insights] = await Promise.all([
+        getCampaigns(a.ad_account_id, a.token),
+        getAdSets(a.ad_account_id, a.token),
+        getAds(a.ad_account_id, a.token),
+        getInsights(a.ad_account_id, a.token, since, until),
+      ]);
+      return { account: a, campaigns, adsets, ads, insights };
+    }),
     getRevenueUtmMaps(src.db, range) as Promise<RevenueUtmMaps>,
     getCheckoutUtmMaps(src.db, range) as Promise<CheckoutUtmMaps>,
+    getPageviewUtmMaps(src.db, range) as Promise<CheckoutUtmMaps>,
     src.db.from("settings").select("currency").eq("id", 1).single(),
   ]);
 
@@ -191,6 +199,7 @@ async function loadCampaigns(
         ...assistOf(assists.campaigns, o.name, o.id),
         ...media,
         checkouts: checkoutsOf(checkoutMaps.campaigns, o.name, o.id),
+        pageviews: checkoutsOf(pageviewMaps.campaigns, o.name, o.id),
       });
     }
     for (const o of p.adsets) {
@@ -214,6 +223,7 @@ async function loadCampaigns(
         ...assistOf(assists.adsets, o.name, o.id),
         ...media,
         checkouts: checkoutsOf(checkoutMaps.adsets, o.name, o.id),
+        pageviews: checkoutsOf(pageviewMaps.adsets, o.name, o.id),
       });
     }
     for (const o of p.ads) {
@@ -238,6 +248,7 @@ async function loadCampaigns(
         ...assistOf(assists.ads, o.name, o.id),
         ...media,
         checkouts: checkoutsOf(checkoutMaps.ads, o.name, o.id),
+        pageviews: checkoutsOf(pageviewMaps.ads, o.name, o.id),
       });
     }
   }

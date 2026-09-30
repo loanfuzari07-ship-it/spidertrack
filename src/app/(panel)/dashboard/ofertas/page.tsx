@@ -9,7 +9,7 @@ import { getFinanceSettings, getOfertaMaps, getSource, type Source } from "@/lib
 import { parseRange, type DateRange } from "@/lib/dashboard/range";
 import { listAdAccounts, rangeToSinceUntil } from "@/lib/dashboard/spend";
 import * as demo from "@/lib/demo/data";
-import { getInsights } from "@/lib/dispatch/meta-ads";
+import { getInsights, mapAccountsSequential } from "@/lib/dispatch/meta-ads";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { refreshOfertas } from "./actions";
 
@@ -63,8 +63,8 @@ async function loadOfertas(
     const selected = accountParam === "all" ? all : all.filter((a) => a.id === accountParam);
     const { since, until } = rangeToSinceUntil(range);
 
-    const results = await Promise.all(
-      selected.map((a) => getInsights(a.ad_account_id, a.token, since, until)),
+    const results = await mapAccountsSequential(selected, (a) =>
+      getInsights(a.ad_account_id, a.token, since, until),
     );
     const byId = new Map<string, { name: string; spend: number }>();
     for (const r of results) {

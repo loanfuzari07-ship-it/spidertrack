@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import {
   META_GRAPH_BASE,
   META_GRAPH_VERSION,
@@ -14,6 +15,73 @@ import {
 // via revalidateTag("meta-insights").
 
 export const META_INSIGHTS_TAG = "meta-insights";
+
+/**
+ * O endpoint de Insights do Meta tem um limite de CONCORRÊNCIA bem rígido por
+ * conta (comum em contas menores/novas): "(#613) ... concurrent request limit
+ * of 1 calls per 20 seconds". Várias telas do painel (Visão geral, Campanhas,
+ * Ofertas) pedem os mesmos insights de uma conta em paralelo — sem isso, cada
+ * uma dispara sua PRÓPRIA chamada simultânea e estoura esse limite. Detecta o
+ * erro (código ou mensagem) pra decidir se vale tentar de novo.
+ */
+function isMetaRateLimit(message: string | undefined, code?: unknown): boolean {
+  if ([4, 17, 32, 613].includes(Number(code))) return true;
+  const m = (message ?? "").toLowerCase();
+  return (
+    m.includes("rate limit") ||
+    m.includes("too many calls") ||
+    m.includes("concurrent request") ||
+    m.includes("request limit")
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Executa `fn` (uma chamada HTTP ao Graph API) e, se vier limitada por
+ * concorrência, espera um pouco e tenta de novo (até `maxRetries` vezes) —
+ * em vez de estourar um erro feio pra pessoa por causa de um pico passageiro
+ * de chamadas simultâneas (ex.: várias abas do painel carregando junto).
+ */
+async function withRateLimitRetry<T extends { ok: boolean; error?: string }>(
+  fn: () => Promise<T>,
+  maxRetries = 2,
+): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    const result = await fn();
+    if (result.ok || attempt >= maxRetries || !isMetaRateLimit(result.error)) {
+      return result;
+    }
+    attempt++;
+    // Backoff curto e crescente — o limite costuma liberar rápido (janela de
+    // poucos segundos), não precisa esperar o "20s" inteiro do erro.
+    await sleep(1500 * attempt);
+  }
+}
+
+/**
+ * Roda uma lista de tarefas (uma por conta de anúncio) uma de cada vez, com um
+ * pequeno intervalo entre elas — contas diferentes costumam compartilhar o
+ * MESMO token (um System User dá acesso a várias contas de uma vez), então
+ * chamadas "em paralelo" pra contas diferentes ainda competem pelo mesmo
+ * limite de concorrência do token. Sequencial é um pouco mais lento, mas não
+ * cai no #613 quando a pessoa seleciona "Todas as contas".
+ */
+export async function mapAccountsSequential<A, T>(
+  items: A[],
+  fn: (item: A) => Promise<T>,
+  delayMs = 300,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < items.length; i++) {
+    if (i > 0) await sleep(delayMs);
+    out.push(await fn(items[i]));
+  }
+  return out;
+}
 
 export interface InsightRow {
   campaign_id: string;
@@ -51,6 +119,17 @@ function sumActionValues(arr: unknown): number {
 }
 
 async function fetchInsightsRaw(
+  adAccountId: string,
+  token: string,
+  since: string,
+  until: string,
+): Promise<InsightsResult> {
+  return withRateLimitRetry(() =>
+    fetchInsightsRawOnce(adAccountId, token, since, until),
+  );
+}
+
+async function fetchInsightsRawOnce(
   adAccountId: string,
   token: string,
   since: string,
@@ -115,8 +194,15 @@ async function fetchInsightsRaw(
  * Versão com cache. O token NÃO entra na chave (fica no closure). Só respostas
  * de SUCESSO são cacheadas — em erro a função lança, então nada é gravado no
  * cache (evita "grudar" um erro por 30 min quando a causa já foi corrigida).
+ *
+ * `cache()` do React memoiza por request: se DUAS telas/funções pedirem os
+ * MESMOS insights (mesma conta+período) dentro da mesma renderização — ex.:
+ * a Visão geral chama getTotalSpend/getTotalClicks/getAdNameMap, e os três
+ * usam getInsights com os mesmos parâmetros —, a segunda e a terceira chamada
+ * reaproveitam a mesma promise em vez de disparar sua PRÓPRIA requisição
+ * simultânea ao Graph API (isso sozinho já cobria a maior parte dos #613).
  */
-export async function getInsights(
+export const getInsights = cache(async function getInsights(
   adAccountId: string,
   token: string,
   since: string,
@@ -144,7 +230,7 @@ export async function getInsights(
       fetchedAt: Date.now(),
     };
   }
-}
+});
 
 // ── gasto diário (para o gráfico de receita × investimento) ─────────────────
 
@@ -158,6 +244,17 @@ export interface DailySpend {
 }
 
 async function fetchDailySpendRaw(
+  adAccountId: string,
+  token: string,
+  since: string,
+  until: string,
+): Promise<{ ok: boolean; rows: DailySpend[]; error?: string }> {
+  return withRateLimitRetry(() =>
+    fetchDailySpendRawOnce(adAccountId, token, since, until),
+  );
+}
+
+async function fetchDailySpendRawOnce(
   adAccountId: string,
   token: string,
   since: string,
@@ -198,8 +295,9 @@ async function fetchDailySpendRaw(
   }
 }
 
-/** Gasto por dia (nível de conta), com o mesmo cache dos insights. */
-export async function getDailySpend(
+/** Gasto por dia (nível de conta), com o mesmo cache dos insights. Também
+ *  memoizado por request (ver comentário em `getInsights`). */
+export const getDailySpend = cache(async function getDailySpend(
   adAccountId: string,
   token: string,
   since: string,
@@ -222,7 +320,7 @@ export async function getDailySpend(
   } catch {
     return [];
   }
-}
+});
 
 // ── objetos (campanha/conjunto/anúncio) com status e orçamento ──────────────
 
@@ -238,6 +336,17 @@ export interface AdObject {
 }
 
 async function fetchEdgeRaw(
+  adAccountId: string,
+  token: string,
+  edge: string,
+  fields: string,
+): Promise<{ ok: boolean; rows: AdObject[]; error?: string }> {
+  return withRateLimitRetry(() =>
+    fetchEdgeRawOnce(adAccountId, token, edge, fields),
+  );
+}
+
+async function fetchEdgeRawOnce(
   adAccountId: string,
   token: string,
   edge: string,

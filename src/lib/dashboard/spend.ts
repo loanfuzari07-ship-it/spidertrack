@@ -3,7 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cache } from "react";
 import type { DateRange } from "@/lib/dashboard/range";
 import { getActiveAdAccounts } from "@/lib/dispatch/accounts";
-import { getDailySpend, getInsights } from "@/lib/dispatch/meta-ads";
+import {
+  getDailySpend,
+  getInsights,
+  mapAccountsSequential,
+} from "@/lib/dispatch/meta-ads";
 
 /**
  * Contas de anúncio ativas, memoizadas por request. Sem isto, cada agregado da
@@ -69,8 +73,8 @@ export async function getTotalSpend(
   if (accounts.length === 0) return { spend: 0, ok: true, fetchedAt: null };
 
   const { since, until } = rangeToSinceUntil(range);
-  const results = await Promise.all(
-    accounts.map((a) => getInsights(a.ad_account_id, a.token, since, until)),
+  const results = await mapAccountsSequential(accounts, (a) =>
+    getInsights(a.ad_account_id, a.token, since, until),
   );
   const spend = results.reduce(
     (sum, r) =>
@@ -104,8 +108,8 @@ export async function getTotalClicks(
   if (accounts.length === 0) return { clicks: 0, ok: true };
 
   const { since, until } = rangeToSinceUntil(range);
-  const results = await Promise.all(
-    accounts.map((a) => getInsights(a.ad_account_id, a.token, since, until)),
+  const results = await mapAccountsSequential(accounts, (a) =>
+    getInsights(a.ad_account_id, a.token, since, until),
   );
   const clicks = results.reduce(
     (sum, r) =>
@@ -136,8 +140,8 @@ export async function getAdNameMap(
   if (accounts.length === 0) return {};
 
   const { since, until } = rangeToSinceUntil(range);
-  const results = await Promise.all(
-    accounts.map((a) => getInsights(a.ad_account_id, a.token, since, until)),
+  const results = await mapAccountsSequential(accounts, (a) =>
+    getInsights(a.ad_account_id, a.token, since, until),
   );
   const map: Record<string, string> = {};
   for (const r of results) {
@@ -163,8 +167,8 @@ export async function getDailySpendMap(
   if (accounts.length === 0) return map;
 
   const { since, until } = rangeToSinceUntil(range);
-  const results = await Promise.all(
-    accounts.map((a) => getDailySpend(a.ad_account_id, a.token, since, until)),
+  const results = await mapAccountsSequential(accounts, (a) =>
+    getDailySpend(a.ad_account_id, a.token, since, until),
   );
   for (const rows of results) {
     for (const r of rows) {

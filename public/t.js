@@ -55,13 +55,24 @@
   }
 
   // ── identidade e atribuição ──────────────────────────────────────────────
+  // O id é gerado AQUI, na hora, em vez de esperar a resposta do /api/identify
+  // (que roda em segundo plano, depois de carregar gtag/Pixel — pode levar mais
+  // de 1s). Sem isso, um clique rápido (ex.: "Iniciar Checkout" numa página que
+  // já mostra o botão de cara) dispara o evento com trck_user_id vazio: ele
+  // aparece normal na aba Eventos, mas some do SpiderFlow (que só conta
+  // visitantes com id resolvido). O servidor aceita o id que o cliente mandar
+  // (usa `input.trck_user_id || newId()`), então gerar aqui é seguro.
   function resolveId() {
     var fromUrl = getParam("trck");
     if (fromUrl) {
       store(LS_ID, fromUrl);
       return fromUrl;
     }
-    return load(LS_ID);
+    var stored = load(LS_ID);
+    if (stored) return stored;
+    var generated = uuid();
+    store(LS_ID, generated);
+    return generated;
   }
 
   function captureUtms() {

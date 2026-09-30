@@ -1044,28 +1044,31 @@ export async function getVisitorJourney(
   return (data as JourneyEvent[]) ?? [];
 }
 
-// ── Checkouts iniciados por UTM (para CPI = custo por IC na aba Campanhas) ──
+// ── Checkouts/PageViews por UTM (para CPI/custo-por-visualização na aba
+//    Campanhas) ──────────────────────────────────────────────────────────
 
 export interface CheckoutUtmMaps {
-  campaigns: Map<string, number>; // key = utm_campaign (lower) → nº de ICs
+  campaigns: Map<string, number>; // key = utm_campaign (lower) → contagem
   adsets: Map<string, number>; // key = utm_term (lower)
   ads: Map<string, number>; // key = utm_content (lower)
 }
 
 /**
- * Conta InitiateCheckout por UTM em 3 níveis, com a mesma chave de casamento
- * (`nome|id`) usada em `getRevenueUtmMaps`, para cruzar com os objetos do Meta
- * e calcular CPI (custo por checkout iniciado) na aba Campanhas.
+ * Conta eventos (por nome) por UTM em 3 níveis, com a mesma chave de casamento
+ * (`nome|id`) usada em `getRevenueUtmMaps`, pra cruzar com os objetos do Meta
+ * na aba Campanhas. Base de `getCheckoutUtmMaps` (InitiateCheckout) e
+ * `getPageviewUtmMaps` (PageView) — mesma forma, só troca a lista de eventos.
  */
-export async function getCheckoutUtmMaps(
+async function getEventUtmCounts(
   db: DB,
   range: DateRange,
+  eventNames: string[],
 ): Promise<CheckoutUtmMaps> {
   const q = scopeRange(
     db
       .from("events_log")
       .select("utm_campaign, utm_term, utm_content")
-      .in("event_name", CHECKOUT_NAMES)
+      .in("event_name", eventNames)
       .limit(CAP),
     range,
   );
@@ -1094,6 +1097,14 @@ export async function getCheckoutUtmMaps(
   }
   return maps;
 }
+
+/** Checkouts iniciados (InitiateCheckout) por UTM — custo por IC na aba Campanhas. */
+export const getCheckoutUtmMaps = (db: DB, range: DateRange) =>
+  getEventUtmCounts(db, range, CHECKOUT_NAMES);
+
+/** Visualizações de página (PageView) por UTM — coluna "Visualizações" na aba Campanhas. */
+export const getPageviewUtmMaps = (db: DB, range: DateRange) =>
+  getEventUtmCounts(db, range, PAGEVIEW_NAMES);
 
 // ── Chargeback (Visão geral) ────────────────────────────────────────────────
 
