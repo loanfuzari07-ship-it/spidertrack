@@ -299,7 +299,9 @@
   // precisar editar link por link. Force qualquer link com data-trck; pule com
   // data-no-trck.
   var HOTMART_HOSTS = ["hotmart.com"]; // pay.hotmart.com, hotmart.com, etc.
-  var DIGISTORE_HOSTS = ["digistore24.com"]; // www.digistore24.com, checkout, etc.
+  // digistore24.com é o domínio "institucional"; o checkout de verdade que o
+  // cliente acessa roda em checkout-ds24.com (ex.: checkout-ds24.com/product/123).
+  var DIGISTORE_HOSTS = ["digistore24.com", "checkout-ds24.com"];
   var CHECKOUT_HOSTS = HOTMART_HOSTS.concat(DIGISTORE_HOSTS, [
     "wa.me",
     "whatsapp.com", // api.whatsapp.com, chat.whatsapp.com
