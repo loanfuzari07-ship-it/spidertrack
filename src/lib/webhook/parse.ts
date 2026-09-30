@@ -1,5 +1,5 @@
 // Normalizador GENÉRICO de webhooks de compra (Hotmart / Kiwify / Eduzz /
-// DigitalGoat / Digistore24 e outros).
+// DigitalGoat / Digistore24 / Wiapy e outros).
 // Estratégia: tenta uma lista de caminhos candidatos por campo e, se falhar, faz
 // uma busca recursiva por nome de chave. Fácil de estender com novos caminhos.
 
@@ -152,6 +152,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       pick(raw, [
         "data.purchase.transaction",
         "transaction.id", // DigitalGoat
+        "payment.id", // Wiapy
         // "transaction_id" ANTES de "order_id": na Digistore24 o "order_id"
         // é compartilhado entre TODAS as cobranças de uma assinatura
         // (rebills) — usar ele aqui colapsaria cada rebill na mesma linha
@@ -168,8 +169,19 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
     ),
   );
 
+  // Wiapy manda o valor em CENTAVOS (ex.: 1770 = R$ 17,70) — trata à parte,
+  // antes de cair nos candidatos genéricos (que já vêm em reais/valor cheio).
+  const wiapyAmountCents = pick(raw, ["payment.amount"]);
+  const wiapyValue =
+    typeof wiapyAmountCents === "number"
+      ? wiapyAmountCents / 100
+      : typeof wiapyAmountCents === "string" && /^\d+$/.test(wiapyAmountCents)
+        ? Number(wiapyAmountCents) / 100
+        : undefined;
+
   const value = parseMoney(
     firstDefined(
+      wiapyValue,
       pick(raw, [
         "data.purchase.price.value",
         "data.purchase.full_price.value",
@@ -210,6 +222,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       pick(raw, [
         "data.purchase.status",
         "transaction.status", // DigitalGoat
+        "payment.status", // Wiapy: paid | unpaid | credit_card_declined | refunded | chargedback
         "order_status",
         "trans_status",
         "status",
@@ -227,7 +240,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "Customer.email",
         "client_email",
         "buyer.email",
-        "customer.email",
+        "customer.email", // Wiapy e DigitalGoat (client.email)
         "client.email", // DigitalGoat
         "email",
       ]),
@@ -244,6 +257,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "Customer.phone",
         "client_cel",
         "buyer.phone",
+        "customer.mobile_phone", // Wiapy
         "client.phone", // DigitalGoat
         "address_phone_no", // Digistore24
         "phone",
@@ -251,6 +265,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       deepFind(raw, [
         "phone",
         "mobile",
+        "mobile_phone",
         "cellphone",
         "client_cel",
         "celular",
@@ -266,7 +281,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "Customer.full_name",
         "client_name",
         "buyer.name",
-        "customer.name",
+        "customer.name", // Wiapy e DigitalGoat (client.name)
         "client.name", // DigitalGoat
         "name",
       ]),
@@ -284,6 +299,8 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
         "product_name",
         "product.name",
         "orderItems.0.product.name", // DigitalGoat
+        "products.0.title", // Wiapy
+        "checkout.title", // Wiapy: fallback quando não há item em "products"
       ]),
       deepFind(raw, ["product_name"]),
     ),
@@ -297,6 +314,8 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       "product.id",
       "orderItems.0.product.externalId", // DigitalGoat — SKU legível, quando houver
       "orderItems.0.product.id",
+      "products.0.id", // Wiapy
+      "checkout.id", // Wiapy: fallback
     ]),
   );
 
@@ -307,6 +326,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
       "data.purchase.approved_date",
       "data.purchase.order_date",
       "transaction.payedAt", // DigitalGoat
+      "payment.dt_create", // Wiapy
       "approved_date",
       "paid_at",
       "order_date",
@@ -320,6 +340,10 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
   // trck_user_id chega via parâmetro decorado na URL de checkout (?trck=…),
   // que as plataformas costumam expor como src/sck/UTM/campo custom — ou,
   // no caso do DigitalGoat, dentro da URL completa em `checkoutUrl`.
+  // A Wiapy não devolve nenhum campo livre/custom (só as 5 UTMs padrão) — sem
+  // um lugar pra guardar o `trck`, essas vendas casam por e-mail/telefone
+  // mesmo (ver matching em /api/webhook/compra). Não é um bug daqui: é o que a
+  // API deles permite hoje.
   const trck_user_id = toStr(
     firstDefined(
       pick(raw, [
@@ -342,6 +366,7 @@ export function normalizePurchase(raw: unknown): NormalizedPurchase {
     toStr(
       firstDefined(
         pick(raw, names),
+        pick(raw, names.map((n) => `tracking.${n}`)), // Wiapy: tudo dentro de "tracking"
         paramFromUrlField(raw, "checkoutUrl", names[0]), // DigitalGoat
         deepFind(raw, [names[names.length - 1]]),
       ),
@@ -374,11 +399,14 @@ export function shouldDispatchPurchase(status: string | null): boolean {
   const deny = [
     "refund",
     "chargeback",
+    "chargedback", // Wiapy (sem underscore)
     "charged_back",
     "cancel",
     "dispute",
     "pending",
     "waiting",
+    "unpaid", // Wiapy: ainda não pago (pix/boleto aguardando)
+    "declined", // Wiapy: "credit_card_declined"
     "expired",
     "abandon",
     "reject",
@@ -408,10 +436,12 @@ export function shouldLogPurchaseEvent(status: string | null): boolean {
   const deny = [
     "refund",
     "chargeback",
+    "chargedback", // Wiapy (sem underscore)
     "charged_back",
     "cancel",
     "dispute",
     "reject",
+    "declined", // Wiapy: "credit_card_declined" — tentativa que nunca completou
     "expired",
     "abandon",
     "delayed",

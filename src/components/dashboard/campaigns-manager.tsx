@@ -285,8 +285,8 @@ export function CampaignsManager({
               <TableHead className="text-right">ARPU</TableHead>
               <TableHead className="text-right">ROAS</TableHead>
               <TableHead className="text-right">Assist.</TableHead>
-              <TableHead className="text-right">Visualizações</TableHead>
               <TableHead className="text-right">Cliques no link</TableHead>
+              <TableHead className="text-right">Visualizações</TableHead>
               <TableHead className="text-right">IC</TableHead>
               <TableHead className="text-right">CPI</TableHead>
               <TableHead className="text-right">CPC</TableHead>
@@ -433,10 +433,10 @@ export function CampaignsManager({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {formatNumber(r.pageviews)}
+                      {formatNumber(r.clicks)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {formatNumber(r.clicks)}
+                      {formatNumber(r.pageviews)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {formatNumber(r.checkouts)}
