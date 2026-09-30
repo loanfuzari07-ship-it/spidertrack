@@ -461,8 +461,10 @@ export async function discoverAdAccounts(
           | {
               message?: string;
               error_user_msg?: string;
+              type?: string;
               code?: number;
               error_subcode?: number;
+              fbtrace_id?: string;
             }
           | undefined;
         const detail = err?.error_user_msg ?? err?.message ?? `HTTP ${res.status}`;
@@ -472,10 +474,21 @@ export async function discoverAdAccounts(
         const code = err?.code
           ? ` (código ${err.code}${err.error_subcode ? "/" + err.error_subcode : ""})`
           : "";
+        // Quando o Meta bloqueia ANTES de chegar na lógica normal da Graph API
+        // (ex.: bloqueio de WAF/anti-abuso por IP, sem os campos padrão de erro),
+        // o objeto de erro pode vir sem "code" — nesse caso, expõe o "type" e o
+        // HTTP status e o corpo bruto (truncado) pra dar pistas de diagnóstico,
+        // já que a mensagem sozinha ("API access blocked.") não diz muito.
+        const extra =
+          !err?.code && err
+            ? ` [status ${res.status}${err.type ? `, type ${err.type}` : ""}${
+                err.fbtrace_id ? `, trace ${err.fbtrace_id}` : ""
+              }${!err.type && !err.fbtrace_id ? `, raw: ${JSON.stringify(err).slice(0, 200)}` : ""}]`
+            : "";
         return {
           ok: false,
           accounts,
-          error: `${detail}${code}`,
+          error: `${detail}${code}${extra}`,
         };
       }
       for (const d of json.data ?? []) {
